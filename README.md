@@ -9,7 +9,7 @@ DMR analysis is performed using the R-package [DSS](https://bioconductor.org/pac
 See [DSS](https://bioconductor.org/packages/release/bioc/vignettes/DSS/inst/doc/DSS.html) for more information. 
 
 # Annotation:
-Significant DMRs are annotated to provide information on whether DMRs overlap with promoters, exons, and introns. A compressed file, annotations.zip, is provided with the pipeline that contains the annotation information, which is based on gencode.v44. 
+Significant DMRs are annotated to provide information on whether DMRs overlap with promoters, exons, and introns. A compressed file, annotations.zip (which needs to be unzipped `tar -xvf annotations.zip`), is provided with the pipeline that contains the annotation information, which is based on gencode.v44. 
 
 # Visualisation:
 Annotated DMRs are plotted using [modbamtools](https://github.com/rrazaghi/modbamtools). It supports haplotype-specific DMR plotting (by providing haplotagged modified bam files using `--phased_modBam` ) or DMRs between two samples (by providing modified bam files using `--input_modBam1` and `--input_modBam2`) but not group analysis. You can provide a gene list with `--gene_list` to only plot DMRs for the provided genes.
