@@ -28,8 +28,8 @@ $ nextflow run main.nf --help
 Usage: nextflow run main.nf [options]
 
 Options:
-  --input_file1     First input bedmethyl file from sample_1 or haplotype_1 bedmethyl (required)
-  --input_file2     Second input bedmethyl file from sample_2 or haplotype_2 bedmethyl (required)
+  --input_file1     First input bedmethyl file from sample_1 (for DMRs between two samples) or haplotype_1 bedmethyl (for DMRs between haplotypes) (required)
+  --input_file2     Second input bedmethyl file from sample_2 (for DMRs between two samples) or haplotype_2 bedmethyl (for DMRs between haplotypes) (required)
   --output_dir      Output directory (required)
   --input_modBam1   First input modified BAM used to generate bedmethyl for sample_1 (optional)
   --input_modBam2   Second input modified BAM used to generate bedmethyl for sample_2 (optional)
