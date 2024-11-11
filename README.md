@@ -35,7 +35,7 @@ Options:
   --input_modBam2   Second input modified BAM used to generate bedmethyl for sample_2 (optional)
   --input_group1    Directory containing bedmethyl files (with *.bed extension) for group 1 (optional)
   --input_group2    Directory containing bedmethyl files (with *.bed extension) for group 2 (optional)
-  --gene_list       A list of genes to generate plots on (optional)
+  --gene_list       A list of genes as tsv file to generate plots on (optional)
   --5mC             Use this flag to trigger 5mC DMR calling (optional)
   --5hmC            Use this flag to trigger 5hmC DMR calling (optional)
   --6mA             Use this flag to trigger 6mA DMR calling (optional)
