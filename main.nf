@@ -118,7 +118,7 @@ process prep_bedmethyl_5mC_1 {
   script:
   """
   sed -i.bak 's/ /\\t/g' ${bed}
-  awk -F'\\t' '\$4 == "m"' ${bed} | awk -F'\\t' '\$5 >= 2' | awk -F'\\t' '{print \$1"\\t"\$3"\\t"\$5"\\t"\$12}' > ${bed.baseName}_modified.bed
+  awk -F'\\t' '\$4 == "m"' ${bed} | awk -F'\\t' '\$5 >= 5' | awk -F'\\t' '{print \$1"\\t"\$3"\\t"\$5"\\t"\$12}' > ${bed.baseName}_modified.bed
   """
 }
 
@@ -138,7 +138,7 @@ process prep_bedmethyl_5mC_2 {
   script:
   """
   sed -i.bak 's/ /\\t/g' ${bed}
-  awk -F'\\t' '\$4 == "m"' ${bed} | awk -F'\\t' '\$5 >= 2' | awk -F'\\t' '{print \$1"\\t"\$3"\\t"\$5"\\t"\$12}' > ${bed.baseName}_modified.bed
+  awk -F'\\t' '\$4 == "m"' ${bed} | awk -F'\\t' '\$5 >= 5' | awk -F'\\t' '{print \$1"\\t"\$3"\\t"\$5"\\t"\$12}' > ${bed.baseName}_modified.bed
   """
 }
 
