@@ -44,5 +44,7 @@ Options:
   --phased_mA       Use this flag to trigger haplotagged 6mA DMR calling if input files are haplotagged bedmethyls (optional)
   --phased_hmC      Use this flag to trigger haplotagged 5hmC DMR calling if input files are haplotagged bedmethyls (optional)
   --phased_modBam   Haplotagged modified BAM (required for plotting DMRs if --phased_mC/--phased_mA is used)
+  --plots_only      Only run the plotting processes, requires --annotated_dmrs and BAM files
+  --annotated_dmrs  Path to annotated DMR bed file (required if --plots_only is used)
   --help            Print this help message
 ```
