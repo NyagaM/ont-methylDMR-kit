@@ -23,6 +23,8 @@ Options:
   --phased_mA       Use this flag to trigger haplotagged 6mA DMR calling if input files are haplotagged bedmethyls (optional)
   --phased_hmC      Use this flag to trigger haplotagged 5hmC DMR calling if input files are haplotagged bedmethyls (optional)
   --phased_modBam   Haplotagged modified BAM (required for plotting DMRs if --phased_mC/--phased_mA is used)
+  --plots_only      Only run the plotting processes, requires --annotated_dmrs and BAM files
+  --annotated_dmrs  Path to annotated DMR bed file (required if --plots_only is used)
   --help            Print this help message
 """
 
@@ -43,10 +45,31 @@ params.'4mC' = false
 params.'phased_mA' = false
 params.'phased_mC' = false
 params.'phased_hmC' = false
+params.plots_only = false
+params.annotated_dmrs = ""
 
-if (params.help || (!params.input_file1 && !params.input_group1) || (!params.input_file2 && !params.input_group2) || !params.output_dir) {
-  println helpMessage
-  exit 0
+// Help information
+if (params.help) {
+    println helpMessage
+    exit 0
+}
+
+// Separate validation for plots_only mode
+if (params.plots_only) {
+    if (!params.annotated_dmrs || !params.output_dir) {
+        println "In plots-only mode, --annotated_dmrs and --output_dir are required"
+        println helpMessage
+        exit 0
+    }
+} else {
+    // Validation for regular analysis mode
+    if ((!params.input_file1 && !params.input_group1) || 
+        (!params.input_file2 && !params.input_group2) || 
+        !params.output_dir) {
+        println "In analysis mode, input files (--input_file1/2 or --input_group1/2) and --output_dir are required"
+        println helpMessage
+        exit 0
+    }
 }
 
 // Check if output directory exists
@@ -63,6 +86,7 @@ input_ch1 = params.input_file1 ? Channel.fromPath(params.input_file1, checkIfExi
 input_ch2 = params.input_file2 ? Channel.fromPath(params.input_file2, checkIfExists: true) : Channel.empty()
 annotationFile = file("${workflow.projectDir}/annotations/gencode.v44.annotation.exon-promoters-introns.sorted.bed")
 modbamtools_gtf = file("${workflow.projectDir}/annotations/modbamtools.annotation.sorted.gtf.gz")
+annotated_dmrs_ch = params.plots_only ? Channel.fromPath(params.annotated_dmrs, checkIfExists: true) : Channel.empty()
 
 // Check for BAM files
 bam_files_provided = params.input_modBam1 && params.input_modBam2
@@ -94,7 +118,7 @@ process prep_bedmethyl_5mC_1 {
   script:
   """
   sed -i.bak 's/ /\\t/g' ${bed}
-  awk -F'\\t' '\$4 == "m"' ${bed} | awk -F'\\t' '\$5 >= 5' | awk -F'\\t' '{print \$1"\\t"\$3"\\t"\$5"\\t"\$12}' > ${bed.baseName}_modified.bed
+  awk -F'\\t' '\$4 == "m"' ${bed} | awk -F'\\t' '\$5 >= 2' | awk -F'\\t' '{print \$1"\\t"\$3"\\t"\$5"\\t"\$12}' > ${bed.baseName}_modified.bed
   """
 }
 
@@ -114,7 +138,7 @@ process prep_bedmethyl_5mC_2 {
   script:
   """
   sed -i.bak 's/ /\\t/g' ${bed}
-  awk -F'\\t' '\$4 == "m"' ${bed} | awk -F'\\t' '\$5 >= 5' | awk -F'\\t' '{print \$1"\\t"\$3"\\t"\$5"\\t"\$12}' > ${bed.baseName}_modified.bed
+  awk -F'\\t' '\$4 == "m"' ${bed} | awk -F'\\t' '\$5 >= 2' | awk -F'\\t' '{print \$1"\\t"\$3"\\t"\$5"\\t"\$12}' > ${bed.baseName}_modified.bed
   """
 }
 
@@ -754,88 +778,109 @@ process plot_haplotagged_dmrs {
 }
 
 workflow {
-  annotationFile = file("${workflow.projectDir}/annotations/gencode.v44.annotation.exon-promoters-introns.sorted.bed")
-  modbamtools_gtf = file("${workflow.projectDir}/annotations/modbamtools.annotation.sorted.gtf.gz")
+    if (params.plots_only) {
+        println "Running in plots-only mode..."
+        if (params.'phased_mC' || params.'phased_mA') {
+            if (phased_bam_provided) {
+                plot_haplotagged_dmrs(annotated_dmrs_ch, 
+                                    modbamtools_gtf, 
+                                    params.gene_list ? file(params.gene_list) : empty_gene_list, 
+                                    phased_bam_ch)
+            } else {
+                println "Phased BAM file not provided, cannot plot haplotagged DMRs"
+                exit 1
+            }
+        } else if (bam_files_provided) {
+            plot_dmrs(annotated_dmrs_ch, 
+                     modbamtools_gtf, 
+                     params.gene_list ? file(params.gene_list) : empty_gene_list, 
+                     input_bam_ch1, 
+                     input_bam_ch2)
+        } else {
+            println "BAM files not provided, cannot plot DMRs"
+            exit 1
+        }
+    } else {
+        if (params.'5mC') {
+            println "Analysing 5mC methylation..."
+            if (params.input_group1 && params.input_group2) {
+                // Group files manually by pattern
+                group1_beds = Channel.fromPath("${params.input_group1}/*.bed").collect()
+                group2_beds = Channel.fromPath("${params.input_group2}/*.bed").collect()
+                dmrs = group_dmr_calling_5mC(group1_beds, group2_beds)
+            } else {
+                prep_bedfile_results1 = prep_bedmethyl_5mC_1(input_ch1)
+                prep_bedfile_results2 = prep_bedmethyl_5mC_2(input_ch2)
+                dmrs = dmr_calling(prep_bedfile_results1.modified_bed, prep_bedfile_results2.modified_bed)
+            }
+        } else if (params.'6mA') {
+            println "Analysing 6mA methylation..."
+            if (params.input_group1 && params.input_group2) {
+                // Group files manually by pattern
+                group1_beds = Channel.fromPath("${params.input_group1}/*.bed").collect()
+                group2_beds = Channel.fromPath("${params.input_group2}/*.bed").collect()
+                dmrs = group_dmr_calling_6mA(group1_beds, group2_beds)
+            } else {  
+                prep_bedfile_results1 = prep_bedmethyl_6mA_1(input_ch1)
+                prep_bedfile_results2 = prep_bedmethyl_6mA_2(input_ch2)
+                dmrs = dmr_calling(prep_bedfile_results1.modified_bed, prep_bedfile_results2.modified_bed)    
+            }
+        } else if (params.'4mC') {
+            println "Analysing 4mC methylation..."
+            if (params.input_group1 && params.input_group2) {
+                // Group files manually by pattern
+                group1_beds = Channel.fromPath("${params.input_group1}/*.bed").collect()
+                group2_beds = Channel.fromPath("${params.input_group2}/*.bed").collect()
+                dmrs = group_dmr_calling_5mC(group1_beds, group2_beds)
+            } else {  
+                prep_bedfile_results1 = prep_bedmethyl_4mC_1(input_ch1)
+                prep_bedfile_results2 = prep_bedmethyl_4mC_2(input_ch2)
+                dmrs = dmr_calling(prep_bedfile_results1.modified_bed, prep_bedfile_results2.modified_bed)       
+            }
+        } else if (params.'5hmC') {
+            println "Analysing 5hmC methylation..."
+            if (params.input_group1 && params.input_group2) {
+                // Group files manually by pattern
+                group1_beds = Channel.fromPath("${params.input_group1}/*.bed").collect()
+                group2_beds = Channel.fromPath("${params.input_group2}/*.bed").collect()
+                dmrs = group_dmr_calling_5mC(group1_beds, group2_beds)
+            } else {
+                prep_bedfile_results1 = prep_bedmethyl_5hmC_1(input_ch1)
+                prep_bedfile_results2 = prep_bedmethyl_5hmC_2(input_ch2)
+                dmrs = dmr_calling(prep_bedfile_results1.modified_bed, prep_bedfile_results2.modified_bed)
+            }
+        } else if (params.'phased_mC') {
+            println "Analysing haplotagged mC methylation..."
+            prep_bedfile_results1 = prep_bedmethyl_mC_HP_1(input_ch1)
+            prep_bedfile_results2 = prep_bedmethyl_mC_HP_2(input_ch2)
+            dmrs = dmr_calling(prep_bedfile_results1.modified_bed, prep_bedfile_results2.modified_bed)
+        } else if (params.'phased_hmC') {
+            println "Analysing haplotagged 5hmC methylation..."
+            prep_bedfile_results1 = prep_bedmethyl_hmC_HP_1(input_ch1)
+            prep_bedfile_results2 = prep_bedmethyl_hmC_HP_2(input_ch2)
+            dmrs = dmr_calling(prep_bedfile_results1.modified_bed, prep_bedfile_results2.modified_bed)
+        } else if (params.'phased_mA') {
+            println "Analysing haplotagged 6mA methylation..."
+            prep_bedfile_results1 = prep_bedmethyl_6mA_HP_1(input_ch1)
+            prep_bedfile_results2 = prep_bedmethyl_6mA_HP_2(input_ch2)
+            dmrs = dmr_calling(prep_bedfile_results1.modified_bed, prep_bedfile_results2.modified_bed)
+        } else {
+            println "Provide a valid methylation type flag '--5mC, --5hmC, --6mA, --4mC, --phased_mC, --phased_hmC, --phased_mA' and retry, exiting."
+            exit 1
+        }
 
-  if (params.'5mC') {
-    println "Analysing 5mC methylation..."
-    if (params.input_group1 && params.input_group2) {
-      // Group files manually by pattern
-      group1_beds = Channel.fromPath("${params.input_group1}/*.bed").collect()
-      group2_beds = Channel.fromPath("${params.input_group2}/*.bed").collect()
-      dmrs = group_dmr_calling_5mC(group1_beds, group2_beds)
-    } else {
-      prep_bedfile_results1 = prep_bedmethyl_5mC_1(input_ch1)
-      prep_bedfile_results2 = prep_bedmethyl_5mC_2(input_ch2)
-      dmrs = dmr_calling(prep_bedfile_results1.modified_bed, prep_bedfile_results2.modified_bed)
+        annotated_dmr_beds = annotate_dmrs(dmrs.dmr_beds, file(annotationFile))
+        
+        if (params.'phased_mC' || params.'phased_mA') {
+            if (phased_bam_provided) {
+                plot_haplotagged_dmrs(annotated_dmr_beds, modbamtools_gtf, params.gene_list ? file(params.gene_list) : empty_gene_list, phased_bam_ch)
+            } else {
+                println "Phased BAM file not provided, skipping plotting haplotagged DMRs"
+            }
+        } else if (bam_files_provided) {
+            plot_dmrs(annotated_dmr_beds, modbamtools_gtf, params.gene_list ? file(params.gene_list) : empty_gene_list, input_bam_ch1, input_bam_ch2)
+        } else {
+            println "No BAM files provided, skipping plotting DMRs"
+        }
     }
-  } else if (params.'6mA') {
-    println "Analysing 6mA methylation..."
-    if (params.input_group1 && params.input_group2) {
-      // Group files manually by pattern
-      group1_beds = Channel.fromPath("${params.input_group1}/*.bed").collect()
-      group2_beds = Channel.fromPath("${params.input_group2}/*.bed").collect()
-      dmrs = group_dmr_calling_6mA(group1_beds, group2_beds)
-    } else {  
-      prep_bedfile_results1 = prep_bedmethyl_6mA_1(input_ch1)
-      prep_bedfile_results2 = prep_bedmethyl_6mA_2(input_ch2)
-      dmrs = dmr_calling(prep_bedfile_results1.modified_bed, prep_bedfile_results2.modified_bed)    
-    }
-  } else if (params.'4mC') {
-    println "Analysing 4mC methylation..."
-    if (params.input_group1 && params.input_group2) {
-      // Group files manually by pattern
-      group1_beds = Channel.fromPath("${params.input_group1}/*.bed").collect()
-      group2_beds = Channel.fromPath("${params.input_group2}/*.bed").collect()
-      dmrs = group_dmr_calling_5mC(group1_beds, group2_beds)
-    } else {  
-      prep_bedfile_results1 = prep_bedmethyl_4mC_1(input_ch1)
-      prep_bedfile_results2 = prep_bedmethyl_4mC_2(input_ch2)
-      dmrs = dmr_calling(prep_bedfile_results1.modified_bed, prep_bedfile_results2.modified_bed)       
-    }
-  } else if (params.'5hmC') {
-    println "Analysing 5hmC methylation..."
-    if (params.input_group1 && params.input_group2) {
-      // Group files manually by pattern
-      group1_beds = Channel.fromPath("${params.input_group1}/*.bed").collect()
-      group2_beds = Channel.fromPath("${params.input_group2}/*.bed").collect()
-      dmrs = group_dmr_calling_5mC(group1_beds, group2_beds)
-    } else {
-      prep_bedfile_results1 = prep_bedmethyl_5hmC_1(input_ch1)
-      prep_bedfile_results2 = prep_bedmethyl_5hmC_2(input_ch2)
-      dmrs = dmr_calling(prep_bedfile_results1.modified_bed, prep_bedfile_results2.modified_bed)
-    }
-  } else if (params.'phased_mC') {
-    println "Analysing haplotagged mC methylation..."
-    prep_bedfile_results1 = prep_bedmethyl_mC_HP_1(input_ch1)
-    prep_bedfile_results2 = prep_bedmethyl_mC_HP_2(input_ch2)
-    dmrs = dmr_calling(prep_bedfile_results1.modified_bed, prep_bedfile_results2.modified_bed)
-  } else if (params.'phased_hmC') {
-    println "Analysing haplotagged 5hmC methylation..."
-    prep_bedfile_results1 = prep_bedmethyl_hmC_HP_1(input_ch1)
-    prep_bedfile_results2 = prep_bedmethyl_hmC_HP_2(input_ch2)
-    dmrs = dmr_calling(prep_bedfile_results1.modified_bed, prep_bedfile_results2.modified_bed)
-  } else if (params.'phased_mA') {
-    println "Analysing haplotagged 6mA methylation..."
-    prep_bedfile_results1 = prep_bedmethyl_6mA_HP_1(input_ch1)
-    prep_bedfile_results2 = prep_bedmethyl_6mA_HP_2(input_ch2)
-    dmrs = dmr_calling(prep_bedfile_results1.modified_bed, prep_bedfile_results2.modified_bed)
-  } else {
-    println "Provide a valid methylation type flag '--5mC, --5hmC, --6mA, --4mC, --phased_mC, --phased_hmC, --phased_mA' and retry, exiting."
-    exit 1
-  }
-
-  annotated_dmr_beds = annotate_dmrs(dmrs.dmr_beds, file(annotationFile))
-  
-  if (params.'phased_mC' || params.'phased_mA') {
-    if (phased_bam_provided) {
-      plot_haplotagged_dmrs(annotated_dmr_beds, modbamtools_gtf, params.gene_list ? file(params.gene_list) : empty_gene_list, phased_bam_ch)
-    } else {
-      println "Phased BAM file not provided, skipping plotting haplotagged DMRs"
-    }
-  } else if (bam_files_provided) {
-    plot_dmrs(annotated_dmr_beds, modbamtools_gtf, params.gene_list ? file(params.gene_list) : empty_gene_list, input_bam_ch1, input_bam_ch2)
-  } else {
-    println "No BAM files provided, skipping plotting DMRs"
-  }
 }
