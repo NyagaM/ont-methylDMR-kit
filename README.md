@@ -69,3 +69,5 @@ nextflow run ont-methylDMR-kit/main.nf -profile standard \
   --output_dir /path/to/write output \
   --gene_list /path/to/gene_list.txt 
 ```
+# Publications
+1. Nyaga, D.M., Tsai, P., Gebbie, C. et al. Benchmarking nanopore sequencing and rapid genomics feasibility: validation at a quaternary hospital in New Zealand. npj Genom. Med. 9, 57 (2024). https://doi.org/10.1038/s41525-024-00445-5
