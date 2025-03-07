@@ -5,8 +5,8 @@ The pipeline is built using [Nextflow](https://www.nextflow.io/), a bioinformati
 There are two docker images available from [DockerHub](https://hub.docker.com/repository/docker/nyagam/ont-methyl-kit/general) and [DockerHub](https://hub.docker.com/repository/docker/nyagam/modbamtools-v0.4.8/general) that contains all the tools/softwares required by the pipeline, making results highly reproducible. 
 
 # DMR analysis:
-DMR analysis is performed using the R-package [DSS](https://bioconductor.org/packages/release/bioc/vignettes/DSS/inst/doc/DSS.html). It supports calling DMRs across 5-Methylcytosine (`--5mC`), 5-Hydroxymethylcytosine (`--5hmC`), N6-methyladenine (`--6mA`), and N4-methylcytosine (`--4mC`) modified bases. It also supports haplotype-specific DMRs using `--phased_mC`, `--phased_mA`, and `--phased_hmC`. Just provide raw bedmethyl files generated using [modkit](https://github.com/nanoporetech/modkit) using either `--input_file1` and `--input_file2` for calling DMRs between haplotypes or two samples; or `--input_group1` and `--input_group2` for group analysis (bedmethyls in these two folders must have `*.bed` extension). Note that --phased_mC and
---phased_hmC  flags are not supported in group analysis; use either--5mC, --5hmC or --6mA separately depending on the type of methylation being analysed. Methyl positions with less than 5 reads are filtered by default. The current default options for [DSS](https://bioconductor.org/packages/release/bioc/vignettes/DSS/inst/doc/DSS.html); delta (threshold for defining DMR) at 10%, p-values threshold for calling DMR at 0.01, minimum length (in basepairs) required for DMR methylation change analysis at 100, minimum number of CpG sites required for DMR at 10, and merging two DMRs that are very close to each other at less than 100 basepairs. To change these parameters, edit `main.nf` in `process dmr_calling or process group_dmr_calling_5mC or process group_dmr_calling_6mA` See [DSS](https://bioconductor.org/packages/release/bioc/vignettes/DSS/inst/doc/DSS.html) for more information. 
+DMR analysis is performed using the R-package [DSS](https://bioconductor.org/packages/release/bioc/vignettes/DSS/inst/doc/DSS.html). It supports calling DMRs across 5-Methylcytosine (`--5mC`), 5-Hydroxymethylcytosine (`--5hmC`), N6-methyladenine (`--6mA`), and N4-methylcytosine (`--4mC`) modified bases. It also supports haplotype-specific DMRs using `--phased_mC`, `--phased_mA`, and `--phased_hmC`. Just provide raw bedmethyl files generated using [modkit](https://github.com/nanoporetech/modkit) using either `--input_file1` and `--input_file2` for calling DMRs between haplotypes or two samples; or `--input_group1` and `--input_group2` for group analysis (bedmethyls in these two folders must have `*.bed` extension). Note that `--phased_mC` and
+`--phased_hmC` flags are not supported in group analysis; use either `--5mC`, `--5hmC` or `--6mA` separately depending on the type of methylation being analysed. Methyl positions with less than 5 reads are filtered by default. The current default options for [DSS](https://bioconductor.org/packages/release/bioc/vignettes/DSS/inst/doc/DSS.html); delta (threshold for defining DMR) at 10%, p-values threshold for calling DMR at 0.01, minimum length (in basepairs) required for DMR methylation change analysis at 100, minimum number of CpG sites required for DMR at 10, and merging two DMRs that are very close to each other at less than 100 basepairs. To change these parameters, edit `main.nf` in `process dmr_calling or process group_dmr_calling_5mC or process group_dmr_calling_6mA` See [DSS](https://bioconductor.org/packages/release/bioc/vignettes/DSS/inst/doc/DSS.html) for more information. 
 
 # Annotation:
 Significant DMRs are annotated to provide information on whether DMRs overlap with promoters, exons, and introns. A compressed file, annotations.zip (which needs to be unzipped `tar -xvf annotations.zip`), is provided with the pipeline that contains the annotation information, which is based on gencode v44. 
@@ -69,6 +69,14 @@ nextflow run ont-methylDMR-kit/main.nf -profile standard \
   --phased_modBam /path/to/phased modBam for the sample \
   --output_dir /path/to/write output \
   --gene_list /path/to/gene_list.txt 
+```
+To run DMR analysis between two groups of bedmethyl files:
+```
+nextflow run ont-methylDMR-kit/main.nf -profile standard \
+  --input_group1 /path/to/bedmethyl files (must have .bed extension) for group 1 \
+  --input_group1 /path/to/bedmethyl files (must have .bed extension) for group 2 \
+  --5mC \ # or --6mA or --4mC 
+  --output_dir /path/to/write output
 ```
 # Publications
 1. Nyaga, D.M., Tsai, P., Gebbie, C. et al. Benchmarking nanopore sequencing and rapid genomics feasibility: validation at a quaternary hospital in New Zealand. npj Genom. Med. 9, 57 (2024). https://doi.org/10.1038/s41525-024-00445-5
