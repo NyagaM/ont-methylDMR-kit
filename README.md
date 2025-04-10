@@ -50,15 +50,7 @@ Options:
   --annotated_dmrs  Path to annotated DMR bed file (required if --plots_only is used)
   --help            Print this help message
 ```
-To run DMR analysis between two samples (without plotting):
-```
-nextflow run ont-methylDMR-kit/main.nf -profile standard \
-  --input_file1 /path/to/bedmethyl file for sample 1 \
-  --input_file2 /path/to/bedmethyl file for sample 2 \
-  --5mC \ # or --6mA or --4mC 
-  --output_dir /path/to/write output \
-```
-To run DMR analysis between two samples (with plotting):
+To run the full DMR analysis workflow between two samples:
 ```
 nextflow run ont-methylDMR-kit/main.nf -profile standard \
   --input_file1 /path/to/bedmethyl file for sample 1 \
@@ -66,6 +58,16 @@ nextflow run ont-methylDMR-kit/main.nf -profile standard \
   --5mC \ # or --6mA or --4mC
   --input_modbam1 /path/to/modBam for sample 1 \
   --input_modbam2 /path/to/modBam for sample 2 \
+  --output_dir /path/to/write output \
+  --gene_list /path/to/gene_list.txt  # if not provided, all regions will be plotted
+```
+To run the full DMR analysis workflow between between two haplotypes:
+```
+nextflow run ont-methylDMR-kit/main.nf -profile standard \
+  --input_file1 /path/to/bedmethyl file for haplotype 1 \
+  --input_file2 /path/to/bedmethyl file for haplotype 2 \
+  --phased_mC \ # or --phased_mA or --phased_hmC
+  --phased_modBam /path/to/phased modBam for the sample \
   --output_dir /path/to/write output \
   --gene_list /path/to/gene_list.txt  # if not provided, all regions will be plotted
 ```
@@ -78,16 +80,6 @@ nextflow run ont-methylDMR-kit/main.nf -profile standard \
   --input_modbam2 /path/to/modBam for sample 2 \
   --output_dir /path/to/write output \
   --gene_list /path/to/gene_list.txt 
-```
-To run DMR analysis between between haplotypes:
-```
-nextflow run ont-methylDMR-kit/main.nf -profile standard \
-  --input_file1 /path/to/bedmethyl file for haplotype 1 \
-  --input_file2 /path/to/bedmethyl file for haplotype 2 \
-  --phased_mC \ # or --phased_mA or --phased_hmC
-  --phased_modBam /path/to/phased modBam for the sample \
-  --output_dir /path/to/write output \
-  --gene_list /path/to/gene_list.txt  # if not provided, all regions will be plotted
 ```
 To run plots-only mode for DMRs identified between haplotypes:
 ```
