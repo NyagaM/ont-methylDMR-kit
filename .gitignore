@@ -1,0 +1,6 @@
+.nextflow/
+.DS_Store
+..DSStore
+._*
+._main.nf
+._.DS_Store
