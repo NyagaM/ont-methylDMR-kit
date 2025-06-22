@@ -1,0 +1,72 @@
+nextflow.enable.dsl = 2
+
+// Annotate significant DMRs
+process annotate_dmrs {
+  label 'ont_methyl_analysis'
+  publishDir "${params.output_dir}/annotated_dmrs", mode: 'copy'
+  cpus 2
+  memory '2 GB'
+
+  input:
+    path bed
+    path annotationFile
+
+  output:
+    path("dmrs_table_annotated.bed"), emit: annotated_dmr_beds
+    path("dmrs_table_annotated_imprinted.bed"), emit: annotated_dmr_beds_imprinted, optional: true
+    path("annotation_summary.log"), emit: annotation_log
+
+  script:
+  """
+  # Create header for annotated files
+  echo -e 'chr\\tstart\\tend\\tlength\\tnSites\\tmeanMethy1\\tmeanMethy2\\tdiff.Methy\\tareaStat\\tannotation_chr\\tannotation_start\\tannotation_end\\tstrand\\tannotation\\tbiotype\\tgene' > annotation_header.txt
+  
+  # Perform bedtools intersection
+  bedtools intersect -a ${bed} -b ${annotationFile} -wa -wb > dmrs_table_annotated.tmp
+  
+  # Create the full annotated DMR table
+  cat annotation_header.txt dmrs_table_annotated.tmp > dmrs_table_annotated.bed
+  
+  # Create summary log
+  touch annotation_summary.log
+  total_dmrs=\$(tail -n +2 ${bed} | wc -l)
+  annotated_dmrs=\$(wc -l < dmrs_table_annotated.tmp)
+  echo "Total DMRs: \${total_dmrs}" >> annotation_summary.log
+  echo "Annotated DMRs: \${annotated_dmrs}" >> annotation_summary.log
+  
+  # If --imprinted flag is used, create a filtered table
+  if [ "${params.imprinted}" = "true" ]; then
+    # Get the imprinted genes file path
+    imprinted_genes_file="${workflow.projectDir}/annotations/imprinted_genes.tsv"
+    
+    if [ -f "\${imprinted_genes_file}" ]; then
+      # Extract gene names from imprinted genes file (assuming first column after header)
+      tail -n +2 "\${imprinted_genes_file}" | cut -f1 | sort | uniq > imprinted_genes_list.txt
+      
+      # Filter the annotated DMRs to include only those overlapping imprinted genes
+      # The gene name is in the last column (field 16)
+      awk -F'\\t' 'NR==FNR{genes[\$1]; next} FNR==1 || \$16 in genes' imprinted_genes_list.txt dmrs_table_annotated.bed > dmrs_table_annotated_imprinted.bed
+      
+      # Count imprinted DMRs
+      imprinted_dmrs=\$(tail -n +2 dmrs_table_annotated_imprinted.bed | wc -l)
+      echo "DMRs overlapping imprinted genes: \${imprinted_dmrs}" >> annotation_summary.log
+      
+      # List unique imprinted genes with DMRs
+      echo -e "\\nImprinted genes with DMRs:" >> annotation_summary.log
+      tail -n +2 dmrs_table_annotated_imprinted.bed | cut -f16 | sort | uniq | while read gene; do
+        count=\$(grep -w "\${gene}\$" dmrs_table_annotated_imprinted.bed | wc -l)
+        echo "  \${gene}: \${count} DMRs" >> annotation_summary.log
+      done
+      
+      # Cleanup
+      rm imprinted_genes_list.txt
+    else
+      echo "WARNING: Imprinted genes file not found at \${imprinted_genes_file}" >> annotation_summary.log
+      echo "Skipping imprinted gene filtering" >> annotation_summary.log
+    fi
+  fi
+  
+  # Cleanup temporary files
+  rm dmrs_table_annotated.tmp annotation_header.txt
+  """
+}
