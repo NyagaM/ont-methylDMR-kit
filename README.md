@@ -55,7 +55,7 @@ Options:
   --help               Print this help message
 ```
 
-# Example:
+# Exemplar:
 Users can run the test data provided to test installation and set-up of the pipeline as follows:
 ```
 cd ont-methylDMR-kit && tar -xvf test_data.tar.gz
@@ -87,7 +87,7 @@ Below is an examples of a significant 2.4kb haplotype-specific DMR identified an
 ![chr15_24954397-24956828_SNURF](https://github.com/user-attachments/assets/455ad8f2-e913-4cc4-9221-00e615bceee6)
 
 
-# Different analysis:
+# Differential workflows:
 To run the full DMR analysis workflow between between two samples:
 ```
 nextflow run ont-methylDMR-kit/main.nf -profile standard \
@@ -99,6 +99,17 @@ nextflow run ont-methylDMR-kit/main.nf -profile standard \
   --output_dir /path/to/write output \
   --gene_list /path/to/gene_list.txt  # if not provided, all regions will be plotted or use --imprinted to plot across imprinted genes
 ```
+To run the full DMR analysis workflow between between two haplotypes:
+
+```
+nextflow run ont-methylDMR-kit/main.nf -profile standard \
+  --input_file1 /path/to/bedmethyl file for haplotype 1 \
+  --input_file2 /path/to/bedmethyl file for haplotype 2 \
+  --phased_mC \ # or --phased_mA or --phased_hmC
+  --phased_modBam /path/to/phased modBam for the sample \
+  --output_dir /path/to/write output \
+  --gene_list /path/to/gene_list.txt  or --imprinted
+```  
 To run plots-only mode for DMRs identified between two samples:
 ```
 nextflow run ont-methylDMR-kit/main.nf -profile standard \
