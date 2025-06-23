@@ -9,7 +9,7 @@ DMR analysis is performed using the R-package [DSS](https://bioconductor.org/pac
 `--phased_hmC` flags are not supported in group analysis; use either `--5mC`, `--4mC` or `--6mA` separately depending on the type of methylation being analysed. Methyl positions with less than 5 reads are filtered by default. The current default options for [DSS](https://bioconductor.org/packages/release/bioc/vignettes/DSS/inst/doc/DSS.html); delta (threshold for defining DMR) at 10%, p-values threshold for calling DMR at 0.01, minimum length (in basepairs) required for DMR methylation change analysis at 100, minimum number of CpG sites required for DMR at 10, and merging two DMRs that are very close to each other at less than 100 basepairs. To change these parameters, edit `main.nf` in `process dmr_calling or process group_dmr_calling_5mC or process group_dmr_calling_6mA` See [DSS](https://bioconductor.org/packages/release/bioc/vignettes/DSS/inst/doc/DSS.html) for more information. 
 
 # Annotation:
-Significant DMRs are annotated to provide information on whether DMRs overlap with promoters, exons, and introns. A compressed file, annotations.zip (which needs to be unzipped `tar -xvf annotations.zip`), is provided with the pipeline that contains the annotation information, which is based on gencode v46. Users can also annotate and plot DMR regions overlapping imprinted genes (provided wiht the pipeline), using `--imprinted`. Imprinted gene list constist of 235 genes based on varying levels of imprinting evidence and associated disorders, and is derived from [PanelApp UK](https://panelapp.genomicsengland.co.uk/panels/227/); and [PanelApp Australia](https://panelapp-aus.org/panels/3663/).
+Significant DMRs are annotated to provide information on whether DMRs overlap with promoters, exons, and introns. A compressed file, `annotations.tar.gz` (which must to be unzipped before running the pipeline `tar -xvf annotations.tar.gz`), is provided with the pipeline that contains the annotation information, which is based on gencode v46. Users can also annotate and plot DMR regions overlapping imprinted genes (provided wiht the pipeline), using `--imprinted`. Imprinted gene list constist of 235 genes based on varying levels of imprinting evidence and associated imprinted disorders like Prader-Willi syndrome, and is derived from [PanelApp UK](https://panelapp.genomicsengland.co.uk/panels/227/); and [PanelApp Australia](https://panelapp-aus.org/panels/3663/).
 
 # Visualisation:
 Annotated DMRs are plotted using [modbamtools](https://github.com/rrazaghi/modbamtools) and [methylartist](https://github.com/adamewing/methylartist). It supports haplotype-specific DMR plotting (by providing haplotagged modified bam files using `--phased_modBam` ) or DMRs between two samples (by providing modified bam files using `--input_modBam1` and `--input_modBam2`) but does not support plotting DMRs from group analysis. You can provide a gene list with `--gene_list` to only plot significant DMRs for the provided genes (if present), or `--imprinted` to plot significant DMRs overlapping imprinted genes. To plot DMRs using `--methylartist_only`, `--reference` must be provided. 
@@ -71,21 +71,19 @@ nextflow run ont-methylDMR-kit/main.nf -profile standard \
 ```
 The output dir should have the following: 
 
-`annotated_dmrs`: folder containing annotated dmrs and log file
-`dmrs`: folder with dmrs and debug folder containing R-scripts and log files
-`haplotagged_dmr_plots`: folder with plots and log file
-`imprinted_genes.txt`: imprinted gene list
+`annotated_dmrs`: folder containing annotated dmrs and log file.
+`dmrs`: folder with dmrs and debug folder containing R-scripts and log files.
+`haplotagged_dmr_plots`: folder with plots and log file.
+`imprinted_genes.txt`: imprinted gene list.
 `modified_beds`: folder with modified input bed files. 
 
 Below is an examples of a significant 2.4kb haplotype-specific DMR identified using the pipeline within the imprinted *SNURF* gene. *SNURF* is mapped within the Prader-Willi Syndrome critical region on chromosome 15. The transcripts produced from this gene initiate at an imprinting center and are paternally-imprinted.
 
 **Visualisation of the DMR using [modbamtools](https://github.com/rrazaghi/modbamtools)**
-
 ![newplot (7)](https://github.com/user-attachments/assets/3464d66b-3c8f-44df-89f6-efb2a770cef0)
 
 
 **Visualisation of the DMR using [methylartist](https://github.com/adamewing/methylartist)**
-
 ![chr15_24954397-24956828_SNURF](https://github.com/user-attachments/assets/455ad8f2-e913-4cc4-9221-00e615bceee6)
 
 
