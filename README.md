@@ -71,11 +71,11 @@ nextflow run ont-methylDMR-kit/main.nf -profile standard \
 ```
 The output dir should have the following: 
 
-`annotated_dmrs`: folder containing annotated dmrs and log file.
-`dmrs`: folder with dmrs and debug folder containing R-scripts and log files.
-`haplotagged_dmr_plots`: folder with plots and log file.
-`imprinted_genes.txt`: imprinted gene list.
-`modified_beds`: folder with modified input bed files. 
+*`annotated_dmrs`*: folder containing annotated dmrs and log file. 
+*`dmrs`*: folder with dmrs and debug folder containing R-scripts and log files. 
+*`haplotagged_dmr_plots`*: folder with plots and log file. 
+*`imprinted_genes.txt`*: imprinted gene list. 
+*`modified_beds`*: folder with modified input bed files. 
 
 Below is an examples of a significant 2.4kb haplotype-specific DMR identified and visualised using the pipeline within the imprinted *SNURF* gene. *SNURF* is mapped within the Prader-Willi Syndrome critical region on chromosome 15. The transcripts produced from this gene initiate at an imprinting center and are paternally-imprinted.
 
