@@ -55,7 +55,7 @@ Options:
   --help               Print this help message
 ```
 
-
+# Example:
 Users can run the test data provided to test installation and set-up of the pipeline as follows:
 ```
 cd ont-methylDMR-kit && tar -xvf test_data.tar.gz
@@ -87,7 +87,7 @@ Below is an examples of a significant 2.4kb haplotype-specific DMR identified an
 ![chr15_24954397-24956828_SNURF](https://github.com/user-attachments/assets/455ad8f2-e913-4cc4-9221-00e615bceee6)
 
 
-
+# Different analysis:
 To run the full DMR analysis workflow between between two samples:
 ```
 nextflow run ont-methylDMR-kit/main.nf -profile standard \
