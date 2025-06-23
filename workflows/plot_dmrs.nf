@@ -2,7 +2,7 @@ nextflow.enable.dsl = 2
 
 // Plot significant DMRs using modbamtools
 process plot_dmr_modbamtools {
-  label 'plot_methyl_dmrs'
+  label 'modbamtools'
   publishDir "${params.output_dir}/dmr_plots/modbamtools", mode: 'copy'
   cpus 2
   memory '4 GB'
@@ -72,7 +72,7 @@ process plot_dmr_modbamtools {
 
 // Plot significant DMRs using methylartist
 process plot_dmr_methylartist {
-  //label 'plot_methyl_dmrs'
+  label 'methylartist'
   publishDir "${params.output_dir}/dmr_plots/methylartist", mode: 'copy'
   cpus 2
   memory '4 GB'
@@ -143,7 +143,7 @@ process plot_dmr_methylartist {
 
 // Plot haplotagged DMRs using modbamtools
 process plot_phased_dmr_modbamtools {
-  label 'plot_methyl_dmrs'
+  label 'modbamtools'
   publishDir "${params.output_dir}/haplotagged_dmr_plots/modbamtools", mode: 'copy'
   cpus 2
   memory '4 GB'
@@ -212,7 +212,7 @@ process plot_phased_dmr_modbamtools {
 
 // Plot haplotagged DMRs using methylartist 
 process plot_phased_dmr_methylartist {
-  //label 'plot_methyl_dmrs'
+  label 'methylartist'
   publishDir "${params.output_dir}/haplotagged_dmr_plots/methylartist", mode: 'copy'
   cpus 2
   memory '4 GB'
