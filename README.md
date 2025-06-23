@@ -77,7 +77,7 @@ The output dir should have the following:
 `imprinted_genes.txt`: imprinted gene list.
 `modified_beds`: folder with modified input bed files. 
 
-Below is an examples of a significant 2.4kb haplotype-specific DMR identified using the pipeline within the imprinted *SNURF* gene. *SNURF* is mapped within the Prader-Willi Syndrome critical region on chromosome 15. The transcripts produced from this gene initiate at an imprinting center and are paternally-imprinted.
+Below is an examples of a significant 2.4kb haplotype-specific DMR identified and visualised using the pipeline within the imprinted *SNURF* gene. *SNURF* is mapped within the Prader-Willi Syndrome critical region on chromosome 15. The transcripts produced from this gene initiate at an imprinting center and are paternally-imprinted.
 
 **Visualisation of the DMR using [modbamtools](https://github.com/rrazaghi/modbamtools)**
 ![newplot (7)](https://github.com/user-attachments/assets/3464d66b-3c8f-44df-89f6-efb2a770cef0)
