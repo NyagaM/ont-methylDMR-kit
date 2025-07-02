@@ -128,8 +128,6 @@ if (!gencode_annotation_gtf_tbi.exists()) {
     exit 1
 }
 gencode_annotation_for_plotting = [gencode_annotation_gtf_file, gencode_annotation_gtf_tbi]
-
-imprinted_genes = file("${workflow.projectDir}/annotations/imprinted_genes.tsv")
 annotated_dmrs_ch = params.plots_only ? Channel.fromPath(params.annotated_dmrs, checkIfExists: true) : Channel.empty()
 
 // Check for BAM files
@@ -174,22 +172,19 @@ workflow {
     // Determine the gene list to use for plotting
     def gene_list_for_plotting
     if (params.imprinted && !params.gene_list) {
-        // imprinted_genes is defined globally as: file("${workflow.projectDir}/annotations/imprinted_genes.tsv")
-        if (imprinted_genes.exists()) {
-            def processed_imprinted_gene_list_file = file("${params.output_dir}/imprinted_genes.txt")
+        def imprinted_file = file("${workflow.projectDir}/annotations/imprinted_genes.tsv")
+        if (imprinted_file.exists()) {
+            def processed_file = file("${params.output_dir}/imprinted_genes.txt")
             try {
-                def gene_names_list = imprinted_genes.readLines().drop(1).collect { line ->
-                    def parts = line.split('\t')
-                    parts.length > 0 ? parts[0].trim() : null
-                }.findAll { it != null && !it.isEmpty() }
-
-                if (gene_names_list.isEmpty()) {
-                    println "WARNING: Imprinted gene file (${imprinted_genes.name}) was found but was empty or contained no gene names after processing header. Using an empty list for plotting."
-                    processed_imprinted_gene_list_file.text = "" // Create an empty file
+                def lines = imprinted_file.readLines()
+                if (lines.size() > 1) {
+                    def genes = lines.drop(1).collect { it.split('\t')[0].trim() }.findAll { it && !it.isEmpty() }
+                    processed_file.text = genes.join('\n')
                 } else {
-                    processed_imprinted_gene_list_file.text = gene_names_list.join('\n')
+                    processed_file.text = ""
+                    println "WARNING: Imprinted genes file ${imprinted_file.name} is empty or has no valid gene entries. No genes will be plotted."
                 }
-                gene_list_for_plotting = processed_imprinted_gene_list_file
+                gene_list_for_plotting = processed_file
                 println "INFO: Using processed imprinted gene list for plotting or annotation: ${gene_list_for_plotting.name}"
             } catch (Exception e) {
                 println "ERROR: Failed to process imprinted genes file ${imprinted_genes.name}: ${e.getMessage()}"
