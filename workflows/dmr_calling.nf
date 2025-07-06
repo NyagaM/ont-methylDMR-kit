@@ -1,303 +1,275 @@
 nextflow.enable.dsl = 2
 
-// Evaluate significant DMRs using DSS
 process dmr_calling {
   label 'ont_methyl_analysis'
-  publishDir "${params.output_dir}/dmrs", mode: 'copy'
-  cpus 24
-  memory '48 GB'
-  //time 2.hours
-
+  cpus 4
+  memory '4 GB'
+  maxForks 10  // Limit parallel chromosomes
+  
   input:
-    path bed1
-    path bed2
-
+    tuple val(chr), path(bed1), path(bed2)
+    
   output:
-    path("dmrs_table.bed"), emit: dmr_beds
-    path("dmr_status.log"), emit: status_log
-    path("debug_files"), emit: debug_output_dir optional true
+    path("dmrs_${chr}.bed"), emit: chr_dmrs
+    path("dmr_status_${chr}.log"), emit: status_log
+    path("debug_${chr}"), emit: debug_output optional true
     
   script:
   """
-  # Create debug directory
-  mkdir -p debug_files R_scripts_for_debug
+  # Create debug directory for this chromosome
+  mkdir -p debug_${chr}
   
   # Header for bed files
   echo -e "chr\\tpos\\tN\\tX" > header.txt
-  # Initialize an empty file for merged results
-  echo -e "chr\\tstart\\tend\\tlength\\tnSites\\tmeanMethy1\\tmeanMethy2\\tdiff.Methy\\tareaStat" > dmrs_table.bed
-  touch dmr_status.log
   
-  # Determine available chromosomes in the input BED files
-  # Use process substitution and tr to handle list for loop
-  available_chromosomes=\$( (awk '{print \$1}' ${bed1} ${bed2} 2>/dev/null || true) | sort -k1,1V | uniq | grep -E '^(chr)?([0-9]+|[XYM])\$' | tr '\\n' ' ')
+  # Prepare input files with header
+  cat header.txt ${bed1} > ${bed1.baseName}_prepped.bed
+  cat header.txt ${bed2} > ${bed2.baseName}_prepped.bed
   
-  if [ -z "\$available_chromosomes" ]; then
-    echo "No valid chromosomes found in the input BED files." > dmr_status.log
-    # dmrs_table.bed is already created with header
+  # Count sites
+  n_sites_1=\$(tail -n +2 ${bed1.baseName}_prepped.bed | wc -l)
+  n_sites_2=\$(tail -n +2 ${bed2.baseName}_prepped.bed | wc -l)
+  
+  echo "Chromosome ${chr}: Sample1 has \${n_sites_1} sites, Sample2 has \${n_sites_2} sites" > dmr_status_${chr}.log
+  
+  # Skip if too few sites
+  if [ \${n_sites_1} -lt 10 ] || [ \${n_sites_2} -lt 10 ]; then
+    echo "Insufficient sites for DMR analysis on chromosome ${chr}" >> dmr_status_${chr}.log
+    echo -e "chr\\tstart\\tend\\tlength\\tnCG\\tmeanMethy1\\tmeanMethy2\\tdiff.Methy\\tareaStat" > dmrs_${chr}.bed
     exit 0
   fi
-  echo -e "Found and processing chromosomes:\n\$(echo \$available_chromosomes | tr ' ' '\\n')" > dmr_status.log
   
-  # Process each available chromosome
-  for chr in \$available_chromosomes; do
-    echo "Processing chromosome: \${chr}" >&2
+  # Create R script for this chromosome
+  cat <<EOF > dmr_analysis_${chr}.R
+  library(DSS)
+  require(bsseq)
+
+  dat1 = read.table("${bed1.baseName}_prepped.bed", header=TRUE)
+  dat2 = read.table("${bed2.baseName}_prepped.bed", header=TRUE)
   
-    awk -v chr="\${chr}" '\$1 == chr' ${bed1} > ${bed1.baseName}_\${chr}.tmp.bed
-    cat header.txt ${bed1.baseName}_\${chr}.tmp.bed > ${bed1.baseName}_\${chr}.bed
-    rm ${bed1.baseName}_\${chr}.tmp.bed
-
-    awk -v chr="\${chr}" '\$1 == chr' ${bed2} > ${bed2.baseName}_\${chr}.tmp.bed
-    cat header.txt ${bed2.baseName}_\${chr}.tmp.bed > ${bed2.baseName}_\${chr}.bed
-    rm ${bed2.baseName}_\${chr}.tmp.bed
-
-    cat <<EOF > ont-methyl-kit_\${chr}.R
-library(DSS)
-require(bsseq)
-dat1 = read.table("${bed1.baseName}_\${chr}.bed", header=TRUE)
-dat2 = read.table("${bed2.baseName}_\${chr}.bed", header=TRUE)
-BSobj = makeBSseqData( list(dat1, dat2), c("C1","C2") )
-dmlTest = DMLtest(BSobj, group1=("C1"), group2=("C2"), smoothing=TRUE, ncores=${task.cpus})
-dmrs = callDMR(dmlTest, 
-               delta=0.10, 
-               p.threshold=0.01, 
-               minlen=100, 
-               minCG=10, 
-               dis.merge=100, 
-               pct.sig=0.5)
-write.table(dmrs, file="dmrs_table_\${chr}.txt", row.names=FALSE, quote=FALSE, sep="\\t")
+  BSobj = makeBSseqData(list(dat1, dat2), c("C1","C2"))
+  dmlTest = DMLtest(BSobj, group1="C1", group2="C2", smoothing=TRUE, ncores=${task.cpus})
+  
+  dmrs = callDMR(dmlTest, 
+                 delta=0.10, 
+                 p.threshold=0.01, 
+                 minlen=100, 
+                 minCG=10, 
+                 dis.merge=100, 
+                 pct.sig=0.5)
+  write.table(dmrs, file="dmrs_${chr}.tsv", row.names=FALSE, quote=FALSE, sep="\\t")
 EOF
 
-    # Run R script and capture output
-    Rscript ont-methyl-kit_\${chr}.R > r_output_\${chr}.log 2>&1
-    
-    # Check if the R script found no DMRs based on the specific message
-    no_dmr_found=false
-    if grep -q "No DMR found! Please use less stringent criteria." r_output_\${chr}.log; then
-      echo "No DMR found for chromosome \${chr}! Please use less stringent criteria." >> dmr_status.log
-      no_dmr_found=true
-    fi
-    
-    # Move R script and output log to debug directory
-    mv ont-methyl-kit_\${chr}.R R_scripts_for_debug/
-    mv r_output_\${chr}.log R_scripts_for_debug/
-
-    # Only append success message if no DMR warning was found
-    if [ "\$no_dmr_found" = false ]; then
-      # Append the results to the merged file
-      if [[ -f dmrs_table_\${chr}.txt && -s dmrs_table_\${chr}.txt ]]; then
-        tail -n +2 dmrs_table_\${chr}.txt >> dmrs_table.bed
-        echo "DMRs found and added for chromosome \${chr}." >> dmr_status.log
-      elif [[ -f dmrs_table_\${chr}.txt ]]; then
-        echo "No significant DMRs found for chromosome \${chr} (empty result file)." >> dmr_status.log
-      else
-        echo "Warning: dmrs_table_\${chr}.txt not found for chromosome \${chr}, skipping." >> dmr_status.log
-      fi
+  # Run R script and capture output
+  Rscript dmr_analysis_${chr}.R > r_output_${chr}.log 2>&1
+  
+  # Check results
+  no_dmr_found=false
+  if grep -q "No DMR found! Please use less stringent criteria." r_output_${chr}.log; then
+    echo "No DMR found for chromosome ${chr}! Please use less stringent criteria." >> dmr_status_${chr}.log
+    no_dmr_found=true
+  fi
+  
+  # Process results
+  if [ "\$no_dmr_found" = false ]; then
+    if [[ -f dmrs_${chr}.tsv && -s dmrs_${chr}.tsv ]]; then
+      # Add header if file has content
+      echo -e "chr\\tstart\\tend\\tlength\\tnCG\\tmeanMethy1\\tmeanMethy2\\tdiff.Methy\\tareaStat" > dmrs_${chr}.bed
+      tail -n +2 dmrs_${chr}.tsv >> dmrs_${chr}.bed
+      n_dmrs=\$(tail -n +2 dmrs_${chr}.bed | wc -l)
+      echo "Found \${n_dmrs} DMRs for chromosome ${chr}" >> dmr_status_${chr}.log
     else
-      # Still try to append any results even if warning was present
-      if [[ -f dmrs_table_\${chr}.txt && -s dmrs_table_\${chr}.txt ]]; then
-        tail -n +2 dmrs_table_\${chr}.txt >> dmrs_table.bed
-      fi
+      echo "No significant DMRs found for chromosome ${chr} (empty result)" >> dmr_status_${chr}.log
+      echo -e "chr\\tstart\\tend\\tlength\\tnCG\\tmeanMethy1\\tmeanMethy2\\tdiff.Methy\\tareaStat" > dmrs_${chr}.bed
     fi
-    
-    # Clean up per-chr files
-    rm -f dmrs_table_\${chr}.txt ${bed1.baseName}_\${chr}.bed ${bed2.baseName}_\${chr}.bed
-  done
+  else
+    # Still create output file even if warning was present
+    echo -e "chr\\tstart\\tend\\tlength\\tnCG\\tmeanMethy1\\tmeanMethy2\\tdiff.Methy\\tareaStat" > dmrs_${chr}.bed
+    if [[ -f dmrs_${chr}.tsv && -s dmrs_${chr}.tsv ]]; then
+      tail -n +2 dmrs_${chr}.tsv >> dmrs_${chr}.bed
+    fi
+  fi
   
   # Move debug files
-  mv R_scripts_for_debug debug_files/
+  mv dmr_analysis_${chr}.R r_output_${chr}.log debug_${chr}/
+  
+  # Clean up
+  rm -f ${bed1.baseName}_prepped.bed ${bed2.baseName}_prepped.bed header.txt dmrs_${chr}.tsv
   """
 }
 
-// Evaluate significant group DMRs using DSS (consolidated process)
-process group_dmr_calling {
+process split_group_beds_by_chr {
   label 'ont_methyl_analysis'
-  publishDir "${params.output_dir}/group_dmrs", mode: 'copy'
-  cpus 36
-  memory '48 GB'
-  //time 6.hours // Adjust as needed
-
+  cpus 1
+  memory '2 GB'
+  
   input:
-    path group1_beds
-    path group2_beds
-    val meth_char          // e.g., 'm' or 'a'
-    val min_cov            // e.g., 5
-    val meth_label         // e.g., "5mC_group" or "6mA_group" for dir naming
-
+    path group_beds
+    val group_name
+    val meth_char
+    val min_cov
+    
   output:
-    path "dmrs_table.bed", emit: dmr_beds
-    path "debug_files", emit: debug_output_dir // Directory containing debug files
-
+    path "chr*_${group_name}_*.bed", emit: chr_beds
+    path "${group_name}_split_summary.log", emit: split_log
+    
   script:
   """
-    mkdir -p debug_files R_scripts_for_debug
-
-    echo -e "chr\\tpos\\tN\\tX" > header.tsv
-    echo -e "chr\\tstart\\tend\\tlength\\tnSites\\tmeanMethy1\\tmeanMethy2\\tdiff.Methy\\tareaStat" > dmrs_table.bed
-    touch dmr_status.log
-
-    # Create temporary directories for initial filtering
-    mkdir -p group1_filtered_beds group2_filtered_beds
-
-    # Initial filtering of group1 bed files
-    for bed_file in ${group1_beds}; do
-      base_name=\$(basename \${bed_file} .bed)
-      sed 's/ /\\t/g' \${bed_file} | \
-      awk -F'\\t' -v mc="${meth_char}" -v ms="${min_cov}" 'BEGIN{OFS="\\t"} \$4 == mc && \$5 >= ms {print \$1, \$3, \$5, \$12}' \
-      > "group1_filtered_beds/\${base_name}.filtered.bed"
+  mkdir -p split_beds
+  echo "Splitting ${group_name} bed files by chromosome" > ${group_name}_split_summary.log
+  
+  # Get all unique chromosomes across all files
+  for bed_file in ${group_beds}; do
+    sed 's/ /\\t/g' \${bed_file} | \
+    awk -F'\\t' -v mc="${meth_char}" -v ms="${min_cov}" 'BEGIN{OFS="\\t"} \$4 == mc && \$5 >= ms {print \$1}' | \
+    sort -u >> all_chromosomes.tmp
+  done
+  
+  # Get unique chromosome list - ONLY chr1-22 and chrX
+  sort -u all_chromosomes.tmp | grep -E '^chr([1-9]|1[0-9]|2[0-2]|X)\$' > unique_chromosomes.txt
+  n_chr=\$(wc -l < unique_chromosomes.txt)
+  echo "Found \${n_chr} chromosomes in ${group_name} (considering only chr1-22 and chrX)" >> ${group_name}_split_summary.log
+  
+  # Show which chromosomes were excluded
+  n_excluded=\$(sort -u all_chromosomes.tmp | grep -vE '^chr([1-9]|1[0-9]|2[0-2]|X)\$' | wc -l)
+  if [ \${n_excluded} -gt 0 ]; then
+    echo "Excluded \${n_excluded} non-standard chromosomes:" >> ${group_name}_split_summary.log
+    sort -u all_chromosomes.tmp | grep -vE '^chr([1-9]|1[0-9]|2[0-2]|X)\$' | while read excluded_chr; do
+      echo "  - \${excluded_chr}" >> ${group_name}_split_summary.log
     done
-
-    # Initial filtering of group2 bed files
-    for bed_file in ${group2_beds}; do
+  fi
+  
+  # Split each file by chromosome
+  while read chr; do
+    for bed_file in ${group_beds}; do
       base_name=\$(basename \${bed_file} .bed)
+      
+      # Extract chromosome-specific data
       sed 's/ /\\t/g' \${bed_file} | \
-      awk -F'\\t' -v mc="${meth_char}" -v ms="${min_cov}" 'BEGIN{OFS="\\t"} \$4 == mc && \$5 >= ms {print \$1, \$3, \$5, \$12}' \
-      > "group2_filtered_beds/\${base_name}.filtered.bed"
+      awk -F'\\t' -v mc="${meth_char}" -v ms="${min_cov}" -v chr="\${chr}" \
+      'BEGIN{OFS="\\t"} \$1 == chr && \$4 == mc && \$5 >= ms {print \$1, \$3, \$5, \$12}' \
+      > "\${chr}_${group_name}_\${base_name}.bed"
+      
+      # Only keep if file has content
+      if [ ! -s "\${chr}_${group_name}_\${base_name}.bed" ]; then
+        rm "\${chr}_${group_name}_\${base_name}.bed"
+      else
+        n_sites=\$(wc -l < "\${chr}_${group_name}_\${base_name}.bed")
+        echo "  \${chr} - \${base_name}: \${n_sites} sites" >> ${group_name}_split_summary.log
+      fi
     done
+  done < unique_chromosomes.txt
+  
+  rm -f all_chromosomes.tmp unique_chromosomes.txt
+  """
+}
 
-    # Determine available chromosomes from all filtered files
-    all_chroms_file="all_chroms.tmp.txt"
-    cat group1_filtered_beds/*.filtered.bed group2_filtered_beds/*.filtered.bed 2>/dev/null | awk '{print \$1}' > \$all_chroms_file
-
-    if [ -s "\$all_chroms_file" ]; then
-      available_chromosomes=\$(cat \$all_chroms_file | sort -k1,1V | uniq | grep -E '^(chr)?([0-9]+|[XYM])\$' | tr '\\n' ' ')
-    else
-      available_chromosomes=""
+process group_dmr_calling {
+  label 'ont_methyl_analysis'
+  cpus 8
+  memory '8 GB'
+  maxForks 5  // Limit parallel chromosomes
+  
+  input:
+    tuple val(chr), path(group1_beds), path(group2_beds)
+    val meth_label
+    
+  output:
+    path("dmrs_${chr}.bed"), emit: chr_dmrs
+    path("dmr_status_${chr}.log"), emit: status_log
+    path("debug_${chr}"), emit: debug_output optional true
+    
+  script:
+  """
+  mkdir -p g1_chr_data g2_chr_data debug_${chr} R_scripts_for_debug
+  
+  echo -e "chr\\tpos\\tN\\tX" > header.tsv
+  echo -e "chr\\tstart\\tend\\tlength\\tnSites\\tmeanMethy1\\tmeanMethy2\\tdiff.Methy\\tareaStat" > dmrs_${chr}.bed
+  echo "Processing chromosome ${chr} for ${meth_label}" > dmr_status_${chr}.log
+  
+  # Count samples in each group
+  n_group1=\$(ls -1 ${group1_beds} 2>/dev/null | wc -l)
+  n_group2=\$(ls -1 ${group2_beds} 2>/dev/null | wc -l)
+  
+  echo "Group 1: \${n_group1} samples, Group 2: \${n_group2} samples" >> dmr_status_${chr}.log
+  
+  # Prepare group1 data
+  group1_has_data=false
+  for bed_file in ${group1_beds}; do
+    if [ -s "\${bed_file}" ]; then
+      base_name=\$(basename \${bed_file} .bed | sed 's/^${chr}_group1_//')
+      cat header.tsv \${bed_file} > "g1_chr_data/\${base_name}.prepped.bed"
+      group1_has_data=true
     fi
-    rm -f \$all_chroms_file
-
-    if [ -z "\$available_chromosomes" ]; then
-      echo "No valid chromosomes found in input BED files after filtering for ${meth_label}." > dmr_status.log
-      mv dmr_status.log debug_files/
-      exit 0 # dmrs_table.bed already created with header
+  done
+  
+  # Prepare group2 data
+  group2_has_data=false
+  for bed_file in ${group2_beds}; do
+    if [ -s "\${bed_file}" ]; then
+      base_name=\$(basename \${bed_file} .bed | sed 's/^${chr}_group2_//')
+      cat header.tsv \${bed_file} > "g2_chr_data/\${base_name}.prepped.bed"
+      group2_has_data=true
     fi
-    echo -e "Found and processing chromosomes for ${meth_label}:\n\$(echo \$available_chromosomes | tr ' ' '\\n')" >> dmr_status.log
-
-    # Process each chromosome from start to finish before moving to the next
-    for chr_val in \$available_chromosomes; do
-      echo "Processing chromosome: \${chr_val} for ${meth_label}" >&2
-      
-      # Create temporary directories for this chromosome
-      mkdir -p "g1_chr_data_\${chr_val}" "g2_chr_data_\${chr_val}"
-      
-      # Prepare group1 data for the current chromosome
-      group1_has_data=false
-      for filtered_bed in group1_filtered_beds/*.filtered.bed; do
-        base_name=\$(basename \$filtered_bed .filtered.bed)
-        if [ -s "\$filtered_bed" ]; then
-          awk -v c="\$chr_val" 'BEGIN{OFS="\\t"} \$1 == c {print \$0}' \$filtered_bed > "g1_chr_data_\${chr_val}/\${base_name}.chr_specific.tmp.bed"
-          if [ -s "g1_chr_data_\${chr_val}/\${base_name}.chr_specific.tmp.bed" ]; then
-            cat header.tsv "g1_chr_data_\${chr_val}/\${base_name}.chr_specific.tmp.bed" > "g1_chr_data_\${chr_val}/\${base_name}.prepped.bed"
-            group1_has_data=true
-          fi
-          rm -f "g1_chr_data_\${chr_val}/\${base_name}.chr_specific.tmp.bed"
-        fi
-      done
-
-      # Prepare group2 data for the current chromosome
-      group2_has_data=false
-      for filtered_bed in group2_filtered_beds/*.filtered.bed; do
-        base_name=\$(basename \$filtered_bed .filtered.bed)
-        if [ -s "\$filtered_bed" ]; then
-          awk -v c="\$chr_val" 'BEGIN{OFS="\\t"} \$1 == c {print \$0}' \$filtered_bed > "g2_chr_data_\${chr_val}/\${base_name}.chr_specific.tmp.bed"
-          if [ -s "g2_chr_data_\${chr_val}/\${base_name}.chr_specific.tmp.bed" ]; then
-            cat header.tsv "g2_chr_data_\${chr_val}/\${base_name}.chr_specific.tmp.bed" > "g2_chr_data_\${chr_val}/\${base_name}.prepped.bed"
-            group2_has_data=true
-          fi
-          rm -f "g2_chr_data_\${chr_val}/\${base_name}.chr_specific.tmp.bed"
-        fi
-      done
-      
-      # Only run R script if both groups have data for this chromosome
-      if [ "\$group1_has_data" = true ] && [ "\$group2_has_data" = true ]; then
-        # Create and run R script for this chromosome
-        cat <<EOF > ont-methyl-kit_grouped_\${chr_val}.R
+  done
+  
+  # Only run if both groups have data
+  if [ "\$group1_has_data" = true ] && [ "\$group2_has_data" = true ]; then
+    cat <<'EOF' > dmr_analysis_${chr}.R
 library(DSS)
 require(bsseq)
 
-dat1_files = Sys.glob("g1_chr_data_\${chr_val}/*.prepped.bed")
-dat2_files = Sys.glob("g2_chr_data_\${chr_val}/*.prepped.bed")
+  dat1_files = Sys.glob("g1_chr_data/*.prepped.bed")
+  dat2_files = Sys.glob("g2_chr_data/*.prepped.bed")
 
-if (length(dat1_files) == 0 || length(dat2_files) == 0) {
-  warning(paste0("No prepped files found for chromosome \${chr_val} in one or both groups. Skipping this chromosome."))
-} else {
-  writeLines(dat1_files, con="R_scripts_for_debug/dat1_files_\${chr_val}.txt")
-  writeLines(dat2_files, con="R_scripts_for_debug/dat2_files_\${chr_val}.txt")
-  
   dat1_list = lapply(dat1_files, read.table, header=TRUE)
   dat2_list = lapply(dat2_files, read.table, header=TRUE)
   
-  if (length(dat1_list) == 0 || length(dat2_list) == 0) {
-    warning(paste0("No data read for chromosome \${chr_val} in one or both groups after attempting to read files. Skipping this chromosome."))
-  } else {
-    BSobj = makeBSseqData(c(dat1_list, dat2_list), 
-                          c(paste0("C", 1:length(dat1_list)), paste0("N", 1:length(dat2_list))))
-    
-    dmlTest = DMLtest(BSobj, 
-                      group1=paste0("C", 1:length(dat1_list)), 
-                      group2=paste0("N", 1:length(dat2_list)), 
-                      smoothing=TRUE, 
-                      ncores=${task.cpus})
-    
-    dmrs = callDMR(dmlTest, 
-                   delta=0.10, 
-                   p.threshold=0.01, 
-                   minlen=100, 
-                   minCG=10, 
-                   dis.merge=100, 
-                   pct.sig=0.5)
-    write.table(dmrs, file="dmrs_table_\${chr_val}.tsv", row.names=FALSE, quote=FALSE, sep="\\t")
-  }
-}
+  BSobj = makeBSseqData(c(dat1_list, dat2_list), 
+                        c(paste0("G1_", 1:length(dat1_list)), 
+                          paste0("G2_", 1:length(dat2_list))))
+  
+  dmlTest = DMLtest(BSobj, 
+                    group1=paste0("G1_", 1:length(dat1_list)), 
+                    group2=paste0("G2_", 1:length(dat2_list)), 
+                    smoothing=TRUE, 
+                    ncores=${task.cpus})
+  
+  dmrs = callDMR(dmlTest, 
+                 delta=0.10, 
+                 p.threshold=0.01, 
+                 minlen=100, 
+                 minCG=10, 
+                 dis.merge=100, 
+                 pct.sig=0.5)
+  
+  write.table(dmrs, file="dmrs_${chr}.tsv", row.names=FALSE, quote=FALSE, sep="\\t")
 EOF
-        
-        # Run R script for this chromosome and capture output
-        Rscript ont-methyl-kit_grouped_\${chr_val}.R > r_output_\${chr_val}.log 2>&1
-        
-        # Check if the R script found no DMRs based on the specific message
-        no_dmr_found=false
-        if grep -q "No DMR found! Please use less stringent criteria." r_output_\${chr_val}.log; then
-          echo "No DMR found for chromosome \${chr_val}! Please use less stringent criteria." >> dmr_status.log
-          no_dmr_found=true
-        fi
-        
-        # Move R script and output log to debug directory
-        mv ont-methyl-kit_grouped_\${chr_val}.R R_scripts_for_debug/
-        mv r_output_\${chr_val}.log R_scripts_for_debug/
-        
-        # Only append success message if no DMR warning was found
-        if [ "\$no_dmr_found" = false ]; then
-          # Append the results to the merged file
-          if [[ -f dmrs_table_\${chr_val}.tsv && -s dmrs_table_\${chr_val}.tsv ]]; then
-            tail -n +2 dmrs_table_\${chr_val}.tsv >> dmrs_table.bed
-            echo "DMRs found and added for chromosome \${chr_val}." >> dmr_status.log
-          elif [[ -f dmrs_table_\${chr_val}.tsv ]]; then
-            echo "No significant DMRs found for chromosome \${chr_val} (empty result file)." >> dmr_status.log
-          else
-            echo "Warning: dmrs_table_\${chr_val}.tsv not found for chromosome \${chr_val}, skipping append." >> dmr_status.log
-          fi
-        else
-          # Still try to append any results even if warning was present
-          if [[ -f dmrs_table_\${chr_val}.tsv && -s dmrs_table_\${chr_val}.tsv ]]; then
-            tail -n +2 dmrs_table_\${chr_val}.tsv >> dmrs_table.bed
-          fi
-        fi
-        
-        # Clean up per-chromosome files immediately
-        rm -f dmrs_table_\${chr_val}.tsv
-      else
-        echo "Skipping chromosome \${chr_val} - insufficient data in one or both groups." >> dmr_status.log
-      fi
-      
-      # Clean up chromosome-specific directories immediately after processing
-      rm -rf "g1_chr_data_\${chr_val}" "g2_chr_data_\${chr_val}"
-    done
-
-    # Move status log and R scripts to debug directory
-    mv dmr_status.log R_scripts_for_debug/ 
-    mv R_scripts_for_debug debug_files/
     
-    # Final cleanup of filtered beds and header
-    rm -rf group1_filtered_beds group2_filtered_beds header.tsv
-  """     
+    # Run R script
+    Rscript dmr_analysis_${chr}.R > r_output_${chr}.log 2>&1
+    
+    # Check results
+    if grep -q "No DMR found! Please use less stringent criteria." r_output_${chr}.log; then
+      echo "No DMR found for chromosome ${chr}! Please use less stringent criteria." >> dmr_status_${chr}.log
+    fi
+    
+    if [[ -f dmrs_${chr}.tsv && -s dmrs_${chr}.tsv ]]; then
+      tail -n +2 dmrs_${chr}.tsv >> dmrs_${chr}.bed
+      n_dmrs=\$(tail -n +2 dmrs_${chr}.bed | wc -l)
+      echo "Found \${n_dmrs} DMRs for chromosome ${chr}" >> dmr_status_${chr}.log
+    else
+      echo "No DMRs found for chromosome ${chr}" >> dmr_status_${chr}.log
+    fi
+    
+    # Save debug info
+    mv dmr_analysis_${chr}.R r_output_${chr}.log debug_${chr}/
+    
+  else
+    echo "Skipping chromosome ${chr} - insufficient data in one or both groups" >> dmr_status_${chr}.log
+  fi
+  
+  # Cleanup
+  rm -rf g1_chr_data g2_chr_data header.tsv dmrs_${chr}.tsv
+  """
 }

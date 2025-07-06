@@ -1,6 +1,5 @@
 nextflow.enable.dsl = 2
 
-// Annotate significant DMRs
 process annotate_dmrs {
   label 'ont_methyl_analysis'
   publishDir "${params.output_dir}/annotated_dmrs", mode: 'copy'
@@ -24,15 +23,15 @@ process annotate_dmrs {
   # Perform bedtools intersection
   bedtools intersect -a ${bed} -b ${annotationFile} -wa -wb > dmrs_table_annotated.tmp
   
-  # Create the full annotated DMR table
-  cat annotation_header.txt dmrs_table_annotated.tmp > dmrs_table_annotated.bed
+  # Create the full annotated DMR table with unique entries only
+  (head -n 1 annotation_header.txt; sort dmrs_table_annotated.tmp | uniq) > dmrs_table_annotated.bed
   
   # Create summary log
   touch annotation_summary.log
   total_dmrs=\$(tail -n +2 ${bed} | wc -l)
-  annotated_dmrs=\$(wc -l < dmrs_table_annotated.tmp)
+  annotated_dmrs=\$(sort dmrs_table_annotated.tmp | uniq | wc -l)
   echo "Total DMRs: \${total_dmrs}" >> annotation_summary.log
-  echo "Annotated DMRs: \${annotated_dmrs}" >> annotation_summary.log
+  echo "DMR Annotations: \${annotated_dmrs}" >> annotation_summary.log
   
   # If --imprinted flag is used, create a filtered table
   if [ "${params.imprinted}" = "true" ]; then
@@ -47,14 +46,15 @@ process annotate_dmrs {
       # The gene name is in the last column (field 16)
       awk -F'\\t' 'NR==FNR{genes[\$1]; next} FNR==1 || \$16 in genes' imprinted_genes_list.txt dmrs_table_annotated.bed > dmrs_table_annotated_imprinted.bed
       
-      # Count imprinted DMRs
-      imprinted_dmrs=\$(tail -n +2 dmrs_table_annotated_imprinted.bed | wc -l)
+
+      # Count imprinted DMRs (unique based on chr, start, end)
+      imprinted_dmrs=\$(tail -n +2 dmrs_table_annotated_imprinted.bed | cut -f1-3 | sort | uniq | wc -l)
       echo "DMRs overlapping imprinted genes: \${imprinted_dmrs}" >> annotation_summary.log
-      
+
       # List unique imprinted genes with DMRs
       echo -e "\\nImprinted genes with DMRs:" >> annotation_summary.log
-      tail -n +2 dmrs_table_annotated_imprinted.bed | cut -f16 | sort | uniq | while read gene; do
-        count=\$(grep -w "\${gene}\$" dmrs_table_annotated_imprinted.bed | wc -l)
+      tail -n +2 dmrs_table_annotated_imprinted.bed | cut -f1-3,16 | sort | uniq | cut -f4 | sort | uniq | while read gene; do
+        count=\$(tail -n +2 dmrs_table_annotated_imprinted.bed | cut -f1-3,16 | sort | uniq | awk -F'\\t' -v gene="\${gene}" '\$4 == gene' | wc -l)
         echo "  \${gene}: \${count} DMRs" >> annotation_summary.log
       done
       
