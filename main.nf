@@ -81,9 +81,9 @@ if (params.plots_only) {
         println helpMessage
         exit 0
     }
-    if (params.methylartist_only && !params.reference) { // This case is already caught above, but good to be explicit for plots_only
-        // This specific check might be redundant due to the global check above, but doesn't hurt.
+    if (params.methylartist_only && !params.reference) { // This case is already caught above, but good to be explicit for plots_only.
     }
+    
 } else {
     // Validation for regular analysis mode
     if ((!params.input_file1 && !params.input_group1) || 
@@ -151,8 +151,8 @@ include { prep_bedmethyl_5hmC as prep_bedmethyl_5hmC_1 } from './workflows/prep_
 include { prep_bedmethyl_5hmC as prep_bedmethyl_5hmC_2 } from './workflows/prep_bedmethyl.nf'
 include { prep_bedmethyl_6mA  as prep_bedmethyl_6mA_1  } from './workflows/prep_bedmethyl.nf'
 include { prep_bedmethyl_6mA  as prep_bedmethyl_6mA_2  } from './workflows/prep_bedmethyl.nf'
-include { prep_bedmethyl_4mC  as prep_bedmethyl_4mC_1  } from './workflows/prep_bedmethyl.nf'
-include { prep_bedmethyl_4mC  as prep_bedmethyl_4mC_2  } from './workflows/prep_bedmethyl.nf'
+include { prep_bedmethyl_5mC  as prep_bedmethyl_4mC_1  } from './workflows/prep_bedmethyl.nf'
+include { prep_bedmethyl_5mC  as prep_bedmethyl_4mC_2  } from './workflows/prep_bedmethyl.nf'
 // Include processes for phased bedmethyl preparation
 include { prep_phased_bedmethyl_mC_HP  as prep_bedmethyl_mC_HP_1  } from './workflows/prep_phased_bedmethyl.nf'
 include { prep_phased_bedmethyl_mC_HP  as prep_bedmethyl_mC_HP_2  } from './workflows/prep_phased_bedmethyl.nf'
@@ -160,15 +160,19 @@ include { prep_phased_bedmethyl_hmC_HP as prep_bedmethyl_hmC_HP_1 } from './work
 include { prep_phased_bedmethyl_hmC_HP as prep_bedmethyl_hmC_HP_2 } from './workflows/prep_phased_bedmethyl.nf'
 include { prep_phased_bedmethyl_mA_HP  as prep_bedmethyl_6mA_HP_1 } from './workflows/prep_phased_bedmethyl.nf'
 include { prep_phased_bedmethyl_mA_HP  as prep_bedmethyl_6mA_HP_2 } from './workflows/prep_phased_bedmethyl.nf'
-// Include DMR calling processes (group_dmr_calling is the new consolidated one)
-include { dmr_calling; group_dmr_calling } from './workflows/dmr_calling.nf'
-// Include annotating and plotting processes
+// Include DMR calling processes
+include { dmr_calling } from './workflows/dmr_calling.nf'
+include { split_group_beds_by_chr as split_beds_group1 } from './workflows/dmr_calling.nf'
+include { split_group_beds_by_chr as split_beds_group2 } from './workflows/dmr_calling.nf'
+include { group_dmr_calling } from './workflows/dmr_calling.nf'
+// Include aggregation, annotating and plotting processes
+include { aggregate_dmrs } from './workflows/aggregate_dmrs.nf'
 include { annotate_dmrs } from './workflows/annotate_dmrs.nf'
+include { report_dmrs } from './workflows/generate_dmr_report.nf'
 include { plot_dmr_modbamtools; plot_dmr_methylartist; plot_phased_dmr_modbamtools; plot_phased_dmr_methylartist } from './workflows/plot_dmrs.nf'
 
-//workflow
-workflow {
 
+workflow {
     // Determine the gene list to use for plotting
     def gene_list_for_plotting
     if (params.imprinted && !params.gene_list) {
@@ -278,74 +282,317 @@ workflow {
         if (params.'5mC') {
             println "Analysing 5mC methylation..."
             if (params.input_group1 && params.input_group2) {
-                // Group files manually by pattern
                 group1_beds = Channel.fromPath("${params.input_group1}/*.bed").collect()
                 group2_beds = Channel.fromPath("${params.input_group2}/*.bed").collect()
-                dmrs = group_dmr_calling(group1_beds, group2_beds, 'm', 5, "5mC_group")
+
+                // Split each group's files by chromosome
+                group1_split = split_beds_group1(group1_beds, "group1", 'm', 5)
+                group2_split = split_beds_group2(group2_beds, "group2", 'm', 5)
+
+                // Create chromosome-based channels
+                group1_by_chr = group1_split.chr_beds.flatten()
+                    .map { file -> [file.name.split('_')[0], file] }
+                    .groupTuple()
+            
+                group2_by_chr = group2_split.chr_beds.flatten()
+                    .map { file -> [file.name.split('_')[0], file] }
+                    .groupTuple()
+            
+                // Join and run per-chromosome dmr calling
+                chr_grouped = group1_by_chr.join(group2_by_chr, by: 0)
+                chr_dmrs = group_dmr_calling(chr_grouped, "5mC_group")
+
+                // Aggregate dmrs
+                all_dmr_files = chr_dmrs.chr_dmrs.collect()
+                all_status_logs = chr_dmrs.status_log.collect()
+                all_debug_dirs = chr_dmrs.debug_output.collect()
+
+                dmrs = aggregate_dmrs(all_dmr_files, all_status_logs, all_debug_dirs)
+               
             } else {
-                prep_bedfile_results1 = prep_bedmethyl_5mC_1(input_ch1)
-                prep_bedfile_results2 = prep_bedmethyl_5mC_2(input_ch2)
-                dmrs = dmr_calling(prep_bedfile_results1.modified_bed, prep_bedfile_results2.modified_bed)
+                // Prepare and split by chromosome
+                prep_ch1 = prep_bedmethyl_5mC_1(input_ch1)
+                prep_ch2 = prep_bedmethyl_5mC_2(input_ch2)
+                
+                // Create chromosome pairs
+                chr_files_ch1 = prep_ch1.chr_beds.flatten()
+                    .map { file -> 
+                        def chr = file.baseName.split('_')[0]
+                        [chr, file]
+                    }
+                
+                chr_files_ch2 = prep_ch2.chr_beds.flatten()
+                    .map { file -> 
+                        def chr = file.baseName.split('_')[0]
+                        [chr, file]
+                    }
+                
+                // Join by chromosome
+                chr_pairs = chr_files_ch1.join(chr_files_ch2, by: 0)
+                
+                // Run DMR calling in parallel for each chromosome
+                chr_dmrs = dmr_calling(chr_pairs)
+                
+                // Aggregate dmrs
+                all_dmr_files = chr_dmrs.chr_dmrs.collect()
+                all_status_logs = chr_dmrs.status_log.collect()
+                all_debug_dirs = chr_dmrs.debug_output.collect()
+                
+                dmrs = aggregate_dmrs(all_dmr_files, all_status_logs, all_debug_dirs)
             }
+
         } else if (params.'6mA') {
             println "Analysing 6mA methylation..."
             if (params.input_group1 && params.input_group2) {
-                // Group files manually by pattern
                 group1_beds = Channel.fromPath("${params.input_group1}/*.bed").collect()
                 group2_beds = Channel.fromPath("${params.input_group2}/*.bed").collect()
-                dmrs = group_dmr_calling(group1_beds, group2_beds, 'a', 5, "6mA_group")
+
+                // Split each group's files by chromosome
+                group1_split = split_beds_group1(group1_beds, "group1", 'a', 5)
+                group2_split = split_beds_group2(group2_beds, "group2", 'a', 5)
+
+                // Create chromosome-based channels
+                group1_by_chr = group1_split.chr_beds.flatten()
+                    .map { file -> [file.name.split('_')[0], file] }
+                    .groupTuple()
+            
+                group2_by_chr = group2_split.chr_beds.flatten()
+                    .map { file -> [file.name.split('_')[0], file] }
+                    .groupTuple()
+            
+                // Join and run per-chromosome dmr calling
+                chr_grouped = group1_by_chr.join(group2_by_chr, by: 0)
+                chr_dmrs = group_dmr_calling(chr_grouped, "6mA_group")
+
+                // Aggregate dmrs
+                all_dmr_files = chr_dmrs.chr_dmrs.collect()
+                all_status_logs = chr_dmrs.status_log.collect()
+                all_debug_dirs = chr_dmrs.debug_output.collect()
+
+                dmrs = aggregate_dmrs(all_dmr_files, all_status_logs, all_debug_dirs)
+                
             } else {  
-                prep_bedfile_results1 = prep_bedmethyl_6mA_1(input_ch1)
-                prep_bedfile_results2 = prep_bedmethyl_6mA_2(input_ch2)
-                dmrs = dmr_calling(prep_bedfile_results1.modified_bed, prep_bedfile_results2.modified_bed)    
+                prep_ch1 = prep_bedmethyl_6mA_1(input_ch1)
+                prep_ch2 = prep_bedmethyl_6mA_2(input_ch2)
+                
+                chr_files_ch1 = prep_ch1.chr_beds.flatten()
+                    .map { file -> 
+                        def chr = file.baseName.split('_')[0]
+                        [chr, file]
+                    }
+                
+                chr_files_ch2 = prep_ch2.chr_beds.flatten()
+                    .map { file -> 
+                        def chr = file.baseName.split('_')[0]
+                        [chr, file]
+                    }
+                
+                chr_pairs = chr_files_ch1.join(chr_files_ch2, by: 0)
+                chr_dmrs = dmr_calling(chr_pairs)
+                
+                all_dmr_files = chr_dmrs.chr_dmrs.collect()
+                all_status_logs = chr_dmrs.status_log.collect()
+                all_debug_dirs = chr_dmrs.debug_output.collect()
+                
+                dmrs = aggregate_dmrs(all_dmr_files, all_status_logs, all_debug_dirs)   
             }
         } else if (params.'4mC') {
             println "Analysing 4mC methylation..."
             if (params.input_group1 && params.input_group2) {
-                // Group files manually by pattern
                 group1_beds = Channel.fromPath("${params.input_group1}/*.bed").collect()
                 group2_beds = Channel.fromPath("${params.input_group2}/*.bed").collect()
-                // Assuming 4mC uses 'm' and score 5 for group, similar to 5mC group. Adjust if different.
-                dmrs = group_dmr_calling(group1_beds, group2_beds, 'm', 5, "4mC_group")
-            } else {  
-                prep_bedfile_results1 = prep_bedmethyl_4mC_1(input_ch1)
-                prep_bedfile_results2 = prep_bedmethyl_4mC_2(input_ch2)
-                dmrs = dmr_calling(prep_bedfile_results1.modified_bed, prep_bedfile_results2.modified_bed)       
+
+                // Split each group's files by chromosome
+                group1_split = split_beds_group1(group1_beds, "group1", 'm', 5)
+                group2_split = split_beds_group2(group2_beds, "group2", 'm', 5)
+
+                // Create chromosome-based channels
+                group1_by_chr = group1_split.chr_beds.flatten()
+                    .map { file -> [file.name.split('_')[0], file] }
+                    .groupTuple()
+            
+                group2_by_chr = group2_split.chr_beds.flatten()
+                    .map { file -> [file.name.split('_')[0], file] }
+                    .groupTuple()
+            
+                // Join and run per-chromosome dmr calling
+                chr_grouped = group1_by_chr.join(group2_by_chr, by: 0)
+                chr_dmrs = group_dmr_calling(chr_grouped, "4mC_group")
+
+                // Aggregate dmrs
+                all_dmr_files = chr_dmrs.chr_dmrs.collect()
+                all_status_logs = chr_dmrs.status_log.collect()
+                all_debug_dirs = chr_dmrs.debug_output.collect()
+
+                dmrs = aggregate_dmrs(all_dmr_files, all_status_logs, all_debug_dirs)
+
+            } else { 
+                prep_ch1 = prep_bedmethyl_4mC_1(input_ch1)
+                prep_ch2 = prep_bedmethyl_4mC_2(input_ch2)
+                
+                chr_files_ch1 = prep_ch1.chr_beds.flatten()
+                    .map { file -> 
+                        def chr = file.baseName.split('_')[0]
+                        [chr, file]
+                    }
+                
+                chr_files_ch2 = prep_ch2.chr_beds.flatten()
+                    .map { file -> 
+                        def chr = file.baseName.split('_')[0]
+                        [chr, file]
+                    }
+                
+                chr_pairs = chr_files_ch1.join(chr_files_ch2, by: 0)
+                chr_dmrs = dmr_calling(chr_pairs)
+                
+                all_dmr_files = chr_dmrs.chr_dmrs.collect()
+                all_status_logs = chr_dmrs.status_log.collect()
+                all_debug_dirs = chr_dmrs.debug_output.collect()
+                
+                dmrs = aggregate_dmrs(all_dmr_files, all_status_logs, all_debug_dirs)      
             }
         } else if (params.'5hmC') {
             println "INFO: Analysing 5hmC methylation..."
             if (params.input_group1 && params.input_group2) {
-                // Group files manually by pattern
                 group1_beds = Channel.fromPath("${params.input_group1}/*.bed").collect()
                 group2_beds = Channel.fromPath("${params.input_group2}/*.bed").collect()
-                // Assuming 5hmC uses 'h' and score 5 for group. Adjust if different.
-                dmrs = group_dmr_calling(group1_beds, group2_beds, 'h', 5, "5hmC_group")
+
+                // Split each group's files by chromosome
+                group1_split = split_beds_group1(group1_beds, "group1", 'h', 5)
+                group2_split = split_beds_group2(group2_beds, "group2", 'h', 5)
+
+                // Create chromosome-based channels
+                group1_by_chr = group1_split.chr_beds.flatten()
+                    .map { file -> [file.name.split('_')[0], file] }
+                    .groupTuple()
+            
+                group2_by_chr = group2_split.chr_beds.flatten()
+                    .map { file -> [file.name.split('_')[0], file] }
+                    .groupTuple()
+            
+                // Join and run per-chromosome dmr calling
+                chr_grouped = group1_by_chr.join(group2_by_chr, by: 0)
+                chr_dmrs = group_dmr_calling(chr_grouped, "5hmC_group")
+
+                // Aggregate dmrs
+                all_dmr_files = chr_dmrs.chr_dmrs.collect()
+                all_status_logs = chr_dmrs.status_log.collect()
+                all_debug_dirs = chr_dmrs.debug_output.collect()
+
+                dmrs = aggregate_dmrs(all_dmr_files, all_status_logs, all_debug_dirs)
+
             } else {
-                prep_bedfile_results1 = prep_bedmethyl_5hmC_1(input_ch1)
-                prep_bedfile_results2 = prep_bedmethyl_5hmC_2(input_ch2)
-                dmrs = dmr_calling(prep_bedfile_results1.modified_bed, prep_bedfile_results2.modified_bed)
+                prep_ch1 = prep_bedmethyl_5hmC_1(input_ch1)
+                prep_ch2 = prep_bedmethyl_5hmC_2(input_ch2)
+                
+                chr_files_ch1 = prep_ch1.chr_beds.flatten()
+                    .map { file -> 
+                        def chr = file.baseName.split('_')[0]
+                        [chr, file]
+                    }
+                
+                chr_files_ch2 = prep_ch2.chr_beds.flatten()
+                    .map { file -> 
+                        def chr = file.baseName.split('_')[0]
+                        [chr, file]
+                    }
+                
+                chr_pairs = chr_files_ch1.join(chr_files_ch2, by: 0)
+                chr_dmrs = dmr_calling(chr_pairs)
+                
+                all_dmr_files = chr_dmrs.chr_dmrs.collect()
+                all_status_logs = chr_dmrs.status_log.collect()
+                all_debug_dirs = chr_dmrs.debug_output.collect()
+                
+                dmrs = aggregate_dmrs(all_dmr_files, all_status_logs, all_debug_dirs)
             }
         } else if (params.'phased_mC') {
             println "INFO: Analysing haplotagged mC methylation..."
-            prep_bedfile_results1 = prep_bedmethyl_mC_HP_1(input_ch1)
-            prep_bedfile_results2 = prep_bedmethyl_mC_HP_2(input_ch2)
-            dmrs = dmr_calling(prep_bedfile_results1.modified_bed, prep_bedfile_results2.modified_bed)
+            prep_ch1 = prep_bedmethyl_mC_HP_1(input_ch1)
+            prep_ch2 = prep_bedmethyl_mC_HP_2(input_ch2)
+            
+            chr_files_ch1 = prep_ch1.chr_beds.flatten()
+                .map { file -> 
+                    def chr = file.baseName.split('_')[0]
+                    [chr, file]
+                }
+            
+            chr_files_ch2 = prep_ch2.chr_beds.flatten()
+                .map { file -> 
+                    def chr = file.baseName.split('_')[0]
+                    [chr, file]
+                }
+            
+            chr_pairs = chr_files_ch1.join(chr_files_ch2, by: 0)
+            chr_dmrs = dmr_calling(chr_pairs)
+            
+            all_dmr_files = chr_dmrs.chr_dmrs.collect()
+            all_status_logs = chr_dmrs.status_log.collect()
+            all_debug_dirs = chr_dmrs.debug_output.collect()
+            
+            dmrs = aggregate_dmrs(all_dmr_files, all_status_logs, all_debug_dirs)
+
         } else if (params.'phased_hmC') {
             println "INFO: Analysing haplotagged 5hmC methylation..."
-            prep_bedfile_results1 = prep_bedmethyl_hmC_HP_1(input_ch1)
-            prep_bedfile_results2 = prep_bedmethyl_hmC_HP_2(input_ch2)
-            dmrs = dmr_calling(prep_bedfile_results1.modified_bed, prep_bedfile_results2.modified_bed)
+            prep_ch1 = prep_bedmethyl_hmC_HP_1(input_ch1)
+            prep_ch2 = prep_bedmethyl_hmC_HP_2(input_ch2)
+            
+            chr_files_ch1 = prep_ch1.chr_beds.flatten()
+                .map { file -> 
+                    def chr = file.baseName.split('_')[0]
+                    [chr, file]
+                }
+            
+            chr_files_ch2 = prep_ch2.chr_beds.flatten()
+                .map { file -> 
+                    def chr = file.baseName.split('_')[0]
+                    [chr, file]
+                }
+            
+            chr_pairs = chr_files_ch1.join(chr_files_ch2, by: 0)
+            chr_dmrs = dmr_calling(chr_pairs)
+            
+            all_dmr_files = chr_dmrs.chr_dmrs.collect()
+            all_status_logs = chr_dmrs.status_log.collect()
+            all_debug_dirs = chr_dmrs.debug_output.collect()
+            
+            dmrs = aggregate_dmrs(all_dmr_files, all_status_logs, all_debug_dirs)
+
         } else if (params.'phased_mA') {
             println "INFO: Analysing haplotagged 6mA methylation..."
-            prep_bedfile_results1 = prep_bedmethyl_6mA_HP_1(input_ch1)
-            prep_bedfile_results2 = prep_bedmethyl_6mA_HP_2(input_ch2)
-            dmrs = dmr_calling(prep_bedfile_results1.modified_bed, prep_bedfile_results2.modified_bed)
+            prep_ch1 = prep_bedmethyl_6mA_HP_1(input_ch1)
+            prep_ch2 = prep_bedmethyl_6mA_HP_2(input_ch2)
+            
+            chr_files_ch1 = prep_ch1.chr_beds.flatten()
+                .map { file -> 
+                    def chr = file.baseName.split('_')[0]
+                    [chr, file]
+                }
+            
+            chr_files_ch2 = prep_ch2.chr_beds.flatten()
+                .map { file -> 
+                    def chr = file.baseName.split('_')[0]
+                    [chr, file]
+                }
+            
+            chr_pairs = chr_files_ch1.join(chr_files_ch2, by: 0)
+            chr_dmrs = dmr_calling(chr_pairs)
+
+            all_dmr_files = chr_dmrs.chr_dmrs.collect()
+            all_status_logs = chr_dmrs.status_log.collect()
+            all_debug_dirs = chr_dmrs.debug_output.collect()
+          
+            dmrs = aggregate_dmrs(all_dmr_files, all_status_logs, all_debug_dirs)
+
         } else {
             println "Provide a valid methylation type flag '--5mC, --5hmC, --6mA, --4mC, --phased_mC, --phased_hmC, --phased_mA' and retry, exiting."
             exit 1
         }
 
-        annotated_dmr_output_ch_for_plotting = annotate_dmrs(dmrs.dmr_beds, file(annotationFile)).annotated_dmr_beds
+        annotated_dmr_output = annotate_dmrs(dmrs.dmr_beds, file(annotationFile))
+        report_dmrs(annotated_dmr_output.annotated_dmr_beds, annotated_dmr_output.annotation_log)
+        annotated_dmr_output_ch_for_plotting = annotated_dmr_output.annotated_dmr_beds
+
         boolean plot_phased_type = (params.'phased_mC' || params.'phased_mA' || params.'phased_hmC')
         boolean is_group_analysis = (params.input_group1 && params.input_group2)
         
