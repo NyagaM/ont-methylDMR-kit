@@ -92,7 +92,7 @@ Below is an examples of a significant 2.4kb haplotype-specific DMR identified an
 # Differential workflows:
 To run the full DMR analysis workflow between between two samples:
 ```
-nextflow run ont-methylDMR-kit/main.nf -profile standard \
+nextflow run ont-methylDMR-kit/main.nf -profile singularity \
   --input_file1 /path/to/bedmethyl file for sample 1 \
   --input_file2 /path/to/bedmethyl file for sample 2 \
   --5mC \ # or --6mA or --4mC
@@ -105,7 +105,7 @@ nextflow run ont-methylDMR-kit/main.nf -profile standard \
 To run the full DMR analysis workflow between between two haplotypes:
 
 ```
-nextflow run ont-methylDMR-kit/main.nf -profile standard \
+nextflow run ont-methylDMR-kit/main.nf -profile singularity \
   --input_file1 /path/to/bedmethyl file for haplotype 1 \
   --input_file2 /path/to/bedmethyl file for haplotype 2 \
   --phased_mC \ # or --phased_mA or --phased_hmC
@@ -116,7 +116,7 @@ nextflow run ont-methylDMR-kit/main.nf -profile standard \
 ```  
 To run plots-only mode for DMRs identified between two samples:
 ```
-nextflow run ont-methylDMR-kit/main.nf -profile standard \
+nextflow run ont-methylDMR-kit/main.nf -profile singularity \
   --plots-only \
   --annotated_dmrs /path/to/dmrs_table_annotated.bed \
   --input_modbam1 /path/to/modBam for sample 1 \
@@ -127,7 +127,7 @@ nextflow run ont-methylDMR-kit/main.nf -profile standard \
 ```
 To run plots-only mode for DMRs identified between haplotypes:
 ```
-nextflow run ont-methylDMR-kit/main.nf -profile standard \
+nextflow run ont-methylDMR-kit/main.nf -profile singularity \
   --plots-only \
   --phased_mC \ # or --phased_mA or --phased_hmC
   --annotated_dmrs /path/to/dmrs_table_annotated.bed \
@@ -138,7 +138,7 @@ nextflow run ont-methylDMR-kit/main.nf -profile standard \
 ```
 To run DMR analysis between two groups of bedmethyl files:
 ```
-nextflow run ont-methylDMR-kit/main.nf -profile standard \
+nextflow run ont-methylDMR-kit/main.nf -profile singularity \
   --input_group1 /path/to/bedmethyl files (must have .bed extension) for group 1 \
   --input_group2 /path/to/bedmethyl files (must have .bed extension) for group 2 \
   --5mC \ # or --6mA or --4mC 
