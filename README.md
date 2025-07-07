@@ -62,7 +62,7 @@ Users can run the test data provided to test installation and set-up of the pipe
 ```
 cd ont-methylDMR-kit && tar -xvf test_data.tar.gz
 
-nextflow run ont-methylDMR-kit/main.nf -profile standard \
+nextflow run ont-methylDMR-kit/main.nf -profile singularity \
   --input_file1 ont-methylDMR-kit/HG002_base-mod-5mC_chr15/HG002_chr15_5mC.1.bed \
   --input_file2 ont-methylDMR-kit/HG002_base-mod-5mC_chr15/HG002_chr15_5mC.2.bed \
   --phased_mC \
