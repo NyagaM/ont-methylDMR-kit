@@ -2,8 +2,9 @@ nextflow.enable.dsl = 2
 
 process prep_bedmethyl_5mC {
   label 'ont_methyl_analysis'
-  label 'process_low'
   publishDir "${params.output_dir}/modified_beds/5mC", mode: 'copy'
+  cpus 2
+  memory '8 GB'
   
   input:
     path bed
@@ -24,13 +25,13 @@ process prep_bedmethyl_5mC {
   total_sites=\$(wc -l < filtered_5mC_temp.bed)
   echo "Total 5mC sites found: \${total_sites}" >> ${bed.baseName}_5mC_prep_summary.log
   
-  # Get list of chromosomes - chr1-22, chrX and chrM
-  cut -f1 filtered_5mC_temp.bed | sort -V | uniq | grep -E '^chr([1-9]|1[0-9]|2[0-2]|X|M)\$' > chromosomes.txt
+  # Get list of chromosomes - ONLY chr1-22 and chrX
+  cut -f1 filtered_5mC_temp.bed | sort -V | uniq | grep -E '^chr([1-9]|1[0-9]|2[0-2]|X)\$' > chromosomes.txt
   n_chr=\$(wc -l < chromosomes.txt)
-  echo "Found \${n_chr} chromosomes (Checked for chr1-22, chrX and chrM only)" >> ${bed.baseName}_5mC_prep_summary.log
+  echo "Found \${n_chr} chromosomes (chr1-22, chrX only)" >> ${bed.baseName}_5mC_prep_summary.log
   
   # Show excluded chromosomes
-  n_excluded=\$(cut -f1 filtered_5mC_temp.bed | sort -V | uniq | grep -vE '^chr([1-9]|1[0-9]|2[0-2]|X|M)\$' | wc -l)
+  n_excluded=\$(cut -f1 filtered_5mC_temp.bed | sort -V | uniq | grep -vE '^chr([1-9]|1[0-9]|2[0-2]|X)\$' | wc -l)
   if [ \${n_excluded} -gt 0 ]; then
     echo "Excluded \${n_excluded} non-standard chromosomes" >> ${bed.baseName}_5mC_prep_summary.log
   fi
@@ -49,8 +50,9 @@ process prep_bedmethyl_5mC {
 
 process prep_bedmethyl_5hmC {
   label 'ont_methyl_analysis'
-  label 'process_low'
   publishDir "${params.output_dir}/modified_beds/5hmC", mode: 'copy'
+  cpus 2
+  memory '8 GB'
   
   input:
     path bed
@@ -71,13 +73,13 @@ process prep_bedmethyl_5hmC {
   total_sites=\$(wc -l < filtered_5hmC_temp.bed)
   echo "Total 5hmC sites found: \${total_sites}" >> ${bed.baseName}_5hmC_prep_summary.log
   
-  # Get list of chromosomes - chr1-22, chrX and chrM
-  cut -f1 filtered_5hmC_temp.bed | sort -V | uniq | grep -E '^chr([1-9]|1[0-9]|2[0-2]|X|M)\$' > chromosomes.txt
+  # Get list of chromosomes - ONLY chr1-22 and chrX
+  cut -f1 filtered_5hmC_temp.bed | sort -V | uniq | grep -E '^chr([1-9]|1[0-9]|2[0-2]|X)\$' > chromosomes.txt
   n_chr=\$(wc -l < chromosomes.txt)
-  echo "Found \${n_chr} chromosomes (Checked for chr1-22, chrX and chrM only)" >> ${bed.baseName}_5hmC_prep_summary.log
+  echo "Found \${n_chr} chromosomes (chr1-22, chrX only)" >> ${bed.baseName}_5hmC_prep_summary.log
   
   # Show excluded chromosomes
-  n_excluded=\$(cut -f1 filtered_5hmC_temp.bed | sort -V | uniq | grep -vE '^chr([1-9]|1[0-9]|2[0-2]|X|M)\$' | wc -l)
+  n_excluded=\$(cut -f1 filtered_5hmC_temp.bed | sort -V | uniq | grep -vE '^chr([1-9]|1[0-9]|2[0-2]|X)\$' | wc -l)
   if [ \${n_excluded} -gt 0 ]; then
     echo "Excluded \${n_excluded} non-standard chromosomes" >> ${bed.baseName}_5hmC_prep_summary.log
   fi
@@ -96,8 +98,9 @@ process prep_bedmethyl_5hmC {
 
 process prep_bedmethyl_6mA {
   label 'ont_methyl_analysis'
-  label 'process_low'
   publishDir "${params.output_dir}/modified_beds/6mA", mode: 'copy'
+  cpus 2
+  memory '8 GB'
   
   input:
     path bed
@@ -118,13 +121,13 @@ process prep_bedmethyl_6mA {
   total_sites=\$(wc -l < filtered_6mA_temp.bed)
   echo "Total 6mA sites found: \${total_sites}" >> ${bed.baseName}_6mA_prep_summary.log
   
-  # Get list of chromosomes - chr1-22, chrX and chrM
-  cut -f1 filtered_6mA_temp.bed | sort -V | uniq | grep -E '^chr([1-9]|1[0-9]|2[0-2]|X|M)\$' > chromosomes.txt
+  # Get list of chromosomes - ONLY chr1-22 and chrX
+  cut -f1 filtered_6mA_temp.bed | sort -V | uniq | grep -E '^chr([1-9]|1[0-9]|2[0-2]|X)\$' > chromosomes.txt
   n_chr=\$(wc -l < chromosomes.txt)
-  echo "Found \${n_chr} chromosomes (Checked for chr1-22, chrX and chrM only)" >> ${bed.baseName}_6mA_prep_summary.log
+  echo "Found \${n_chr} chromosomes (chr1-22, chrX only)" >> ${bed.baseName}_6mA_prep_summary.log
   
   # Show excluded chromosomes
-  n_excluded=\$(cut -f1 filtered_6mA_temp.bed | sort -V | uniq | grep -vE '^chr([1-9]|1[0-9]|2[0-2]|X|M)\$' | wc -l)
+  n_excluded=\$(cut -f1 filtered_6mA_temp.bed | sort -V | uniq | grep -vE '^chr([1-9]|1[0-9]|2[0-2]|X)\$' | wc -l)
   if [ \${n_excluded} -gt 0 ]; then
     echo "Excluded \${n_excluded} non-standard chromosomes" >> ${bed.baseName}_6mA_prep_summary.log
   fi
