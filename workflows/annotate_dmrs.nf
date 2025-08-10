@@ -2,9 +2,8 @@ nextflow.enable.dsl = 2
 
 process annotate_dmrs {
   label 'ont_methyl_analysis'
+  label 'process_low'
   publishDir "${params.output_dir}/annotated_dmrs", mode: 'copy'
-  cpus 2
-  memory '2 GB'
 
   input:
     path bed
