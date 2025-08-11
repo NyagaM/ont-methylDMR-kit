@@ -2,9 +2,8 @@ nextflow.enable.dsl = 2
 
 process aggregate_dmrs {
   label 'ont_methyl_analysis'
+  label 'process_low'
   publishDir "${params.output_dir}/dmrs", mode: 'copy'
-  cpus 2
-  memory '4 GB'
   
   input:
     path chr_dmr_files

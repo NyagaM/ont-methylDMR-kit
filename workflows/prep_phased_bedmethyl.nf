@@ -2,10 +2,9 @@ nextflow.enable.dsl = 2
 
 process prep_phased_bedmethyl_mC_HP {
   label 'ont_methyl_analysis'
+  label 'process_low'
   publishDir "${params.output_dir}/modified_beds/mC_phased", mode: 'copy'
-  cpus 2
-  memory '8 GB'
-  
+
   input:
     path bed
     
@@ -25,13 +24,13 @@ process prep_phased_bedmethyl_mC_HP {
   total_sites=\$(wc -l < filtered_mC_phased_temp.bed)
   echo "Total phased mC sites found: \${total_sites}" >> ${bed.baseName}_mC_phased_prep_summary.log
   
-  # Get list of chromosomes - ONLY chr1-22 and chrX
-  cut -f1 filtered_mC_phased_temp.bed | sort -V | uniq | grep -E '^chr([1-9]|1[0-9]|2[0-2]|X)\$' > chromosomes.txt
+  # Get list of chromosomes - chr1-22, chrX and chrM
+  cut -f1 filtered_mC_phased_temp.bed | sort -V | uniq | grep -E '^chr([1-9]|1[0-9]|2[0-2]|X|M)\$' > chromosomes.txt
   n_chr=\$(wc -l < chromosomes.txt)
-  echo "Found \${n_chr} chromosomes (chr1-22, chrX only)" >> ${bed.baseName}_mC_phased_prep_summary.log
+  echo "Found \${n_chr} chromosomes (Checked for chr1-22, chrX and chrM only)" >> ${bed.baseName}_mC_phased_prep_summary.log
   
   # Show excluded chromosomes
-  n_excluded=\$(cut -f1 filtered_mC_phased_temp.bed | sort -V | uniq | grep -vE '^chr([1-9]|1[0-9]|2[0-2]|X)\$' | wc -l)
+  n_excluded=\$(cut -f1 filtered_mC_phased_temp.bed | sort -V | uniq | grep -vE '^chr([1-9]|1[0-9]|2[0-2]|X|M)\$' | wc -l)
   if [ \${n_excluded} -gt 0 ]; then
     echo "Excluded \${n_excluded} non-standard chromosomes" >> ${bed.baseName}_mC_phased_prep_summary.log
   fi
@@ -50,9 +49,8 @@ process prep_phased_bedmethyl_mC_HP {
 
 process prep_phased_bedmethyl_hmC_HP {
   label 'ont_methyl_analysis'
+  label 'process_low'
   publishDir "${params.output_dir}/modified_beds/hmC_phased", mode: 'copy'
-  cpus 2
-  memory '8 GB'
   
   input:
     path bed
@@ -73,13 +71,13 @@ process prep_phased_bedmethyl_hmC_HP {
   total_sites=\$(wc -l < filtered_hmC_phased_temp.bed)
   echo "Total phased hmC sites found: \${total_sites}" >> ${bed.baseName}_hmC_phased_prep_summary.log
   
-  # Get list of chromosomes - ONLY chr1-22 and chrX
-  cut -f1 filtered_hmC_phased_temp.bed | sort -V | uniq | grep -E '^chr([1-9]|1[0-9]|2[0-2]|X)\$' > chromosomes.txt
+  # Get list of chromosomes - chr1-22, chrX and chrM
+  cut -f1 filtered_hmC_phased_temp.bed | sort -V | uniq | grep -E '^chr([1-9]|1[0-9]|2[0-2]|X|M)\$' > chromosomes.txt
   n_chr=\$(wc -l < chromosomes.txt)
-  echo "Found \${n_chr} chromosomes (chr1-22, chrX only)" >> ${bed.baseName}_hmC_phased_prep_summary.log
+  echo "Found \${n_chr} chromosomes (Checked for chr1-22, chrX and chrM only)" >> ${bed.baseName}_hmC_phased_prep_summary.log
   
   # Show excluded chromosomes
-  n_excluded=\$(cut -f1 filtered_hmC_phased_temp.bed | sort -V | uniq | grep -vE '^chr([1-9]|1[0-9]|2[0-2]|X)\$' | wc -l)
+  n_excluded=\$(cut -f1 filtered_hmC_phased_temp.bed | sort -V | uniq | grep -vE '^chr([1-9]|1[0-9]|2[0-2]|X|M)\$' | wc -l)
   if [ \${n_excluded} -gt 0 ]; then
     echo "Excluded \${n_excluded} non-standard chromosomes" >> ${bed.baseName}_hmC_phased_prep_summary.log
   fi
@@ -98,9 +96,8 @@ process prep_phased_bedmethyl_hmC_HP {
 
 process prep_phased_bedmethyl_mA_HP {
   label 'ont_methyl_analysis'
+  label 'process_low'
   publishDir "${params.output_dir}/modified_beds/mA_phased", mode: 'copy'
-  cpus 2
-  memory '8 GB'
   
   input:
     path bed
@@ -121,13 +118,13 @@ process prep_phased_bedmethyl_mA_HP {
   total_sites=\$(wc -l < filtered_mA_phased_temp.bed)
   echo "Total phased mA sites found: \${total_sites}" >> ${bed.baseName}_mA_phased_prep_summary.log
   
-  # Get list of chromosomes - ONLY chr1-22 and chrX
-  cut -f1 filtered_mA_phased_temp.bed | sort -V | uniq | grep -E '^chr([1-9]|1[0-9]|2[0-2]|X)\$' > chromosomes.txt
+  # Get list of chromosomes - chr1-22, chrX and chrM
+  cut -f1 filtered_mA_phased_temp.bed | sort -V | uniq | grep -E '^chr([1-9]|1[0-9]|2[0-2]|X|M)\$' > chromosomes.txt
   n_chr=\$(wc -l < chromosomes.txt)
-  echo "Found \${n_chr} chromosomes (chr1-22, chrX only)" >> ${bed.baseName}_mA_phased_prep_summary.log
+  echo "Found \${n_chr} chromosomes (Checked for chr1-22, chrX and chrM only)" >> ${bed.baseName}_mA_phased_prep_summary.log
   
   # Show excluded chromosomes
-  n_excluded=\$(cut -f1 filtered_mA_phased_temp.bed | sort -V | uniq | grep -vE '^chr([1-9]|1[0-9]|2[0-2]|X)\$' | wc -l)
+  n_excluded=\$(cut -f1 filtered_mA_phased_temp.bed | sort -V | uniq | grep -vE '^chr([1-9]|1[0-9]|2[0-2]|X|M)\$' | wc -l)
   if [ \${n_excluded} -gt 0 ]; then
     echo "Excluded \${n_excluded} non-standard chromosomes" >> ${bed.baseName}_mA_phased_prep_summary.log
   fi

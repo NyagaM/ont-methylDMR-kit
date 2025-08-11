@@ -2,9 +2,8 @@ nextflow.enable.dsl = 2
 
 process report_dmrs {
     label 'dmr_report'
+    label 'process_low'
     publishDir "${params.output_dir}/annotated_dmrs/report", mode: 'copy'
-    cpus 1
-    memory '2 GB'
 
     input:
     path annotated_bed
