@@ -26,7 +26,7 @@ process modkit_mC {
         --ref ${reference} \\
         --interval-size 1000000 \\
         --log-filepath modkit_${name}.log \\
-        \${probs} \\
+        ${probs} \\
         --combine-strands \\
         --cpg \\
         --threads ${task.cpus} \\
@@ -64,7 +64,7 @@ process modkit_phased_mC {
         --ref ${reference} \\
         --interval-size 1000000 \\
         --log-filepath modkit_phased_${name}.log \\
-        \${probs} \\
+        ${probs} \\
         --prefix ${name}_5mC \\
         --partition-tag HP \\
         --combine-strands \\
@@ -106,7 +106,7 @@ process modkit_mA {
         --interval-size 1000000 \\
         --log-filepath modkit_6mA_${name}.log \\
         ${probs} \\
-        --motif A 0 \\
+        --motif AGG 0 \\
         --threads ${task.cpus} \\
         ${bam} \\
         ${name}_6mA.bed
@@ -149,5 +149,7 @@ process modkit_phased_mA {
         --threads ${task.cpus} \\
         ${bam} \\
         ${name}
+    
+    mv ${name}/*.bed ./ # Move the output files to the current directory 
     """
 }

@@ -1,5 +1,3 @@
-nextflow.enable.dsl = 2
-
 process dmr_calling {
   label 'ont_methyl_analysis'
   maxForks 10     // Limit parallel chromosomes

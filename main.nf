@@ -26,12 +26,12 @@ Options:
   --phased_hmC         Use this flag to trigger haplotagged 5hmC DMR calling if input files are haplotagged bedmethyls (optional)
   --phased_modBam      Haplotagged modified BAM (required for plotting DMRs if --phased_mC, --phased_mA or --phased_hmC is used)
   --pileup             Use this flag to call methylated bases from modified BAMs using modkit (requires --reference and relevant BAM files)
+  --plot               Enable plotting after DMR calling (off by default; works with pileup or bedmethyl inputs)
   --plots_only         Only run the plotting processes, requires --annotated_dmrs and relevant BAM files (and --reference for methylartist)
   --annotated_dmrs     Path to annotated DMR bed file (required if --plots_only is used)
   --methylartist_only  Use this flag to only generate plots using methylartist (requires --reference). Otherwise, both modbamtools and methylartist plots are generated if reference is provided.
   --help               Print this help message
 """
-
 params.help = false
 params.input_modBam1 = false
 params.input_modBam2 = false
@@ -55,6 +55,7 @@ params.annotated_dmrs = ""
 params.imprinted = false
 params.methylartist_only = false
 params.pileup = false
+params.plot = false
 
 // Help information
 if (params.help) {
@@ -83,9 +84,9 @@ if (params.pileup) {
     }
 }
 
-// Early validation for --reference if --methylartist_only is used
-if (params.methylartist_only && !params.reference) {
-    println "ERROR: --reference genome is required when --methylartist_only is specified."
+// Early validation for --reference if --methylartist_only is used (only when plotting)
+if ((params.plot || params.plots_only) && params.methylartist_only && !params.reference) {
+    println "ERROR: --reference genome is required when --methylartist_only is specified for plotting."
     println helpMessage
     exit 1
 }
@@ -130,9 +131,29 @@ annotationFile = file("${workflow.projectDir}/annotations/gencode.v46.annotation
 // Input channel for pileup reference
 pileup_ref_ch = params.pileup ? Channel.fromPath(params.reference, checkIfExists: true).map { [it.baseName, file(it), file(it + '.fai')] } : Channel.empty()
 
+// Reference channel for plotting (independent of pileup)
+plot_ref_ch = params.reference ? Channel.fromPath(params.reference, checkIfExists: true).map { [it.baseName, file(it), file(it + '.fai')] } : Channel.empty()
+
+// Ensure FASTA index exists if plotting needs methylartist
+if ((params.plot || params.plots_only || params.methylartist_only) && params.reference && !file("${params.reference}.fai").exists()) {
+    println "ERROR: Reference index not found: ${params.reference}.fai. Run: samtools faidx ${params.reference}"
+    exit 1
+}
+
 // Define GTF and its index for plotting processes
 gencode_annotation_gtf_file = file("${workflow.projectDir}/annotations/gencode.v46.GRCh38.annotation.sorted.gtf.gz")
 gencode_annotation_gtf_tbi = file("${workflow.projectDir}/annotations/gencode.v46.GRCh38.annotation.sorted.gtf.gz.tbi")
+
+if (!gencode_annotation_gtf_file.exists()) {
+    println "ERROR: GTF file not found: ${gencode_annotation_gtf_file}"
+    exit 1
+}
+if (!gencode_annotation_gtf_tbi.exists()) {
+    println "ERROR: GTF index file (.tbi) not found: ${gencode_annotation_gtf_tbi}. Please ensure it exists and is named correctly (e.g., your_file.gtf.gz.tbi)."
+    exit 1
+}
+gencode_annotation_for_plotting = [gencode_annotation_gtf_file, gencode_annotation_gtf_tbi]
+annotated_dmrs_ch = params.plots_only ? Channel.fromPath(params.annotated_dmrs, checkIfExists: true) : Channel.empty()
 
 if (!gencode_annotation_gtf_file.exists()) {
     println "ERROR: GTF file not found: ${gencode_annotation_gtf_file}"
@@ -273,9 +294,11 @@ def runPileupMode(gene_list_for_plotting) {
         annotated_dmr_output = annotate_dmrs(dmrs.dmr_beds, file(annotationFile))
         report_dmrs(annotated_dmr_output.annotated_dmr_beds, annotated_dmr_output.annotation_log)
         
-        // Plot if BAM provided
-        if (phased_bam_provided) {
+        // Plot if requested and BAM provided
+        if (params.plot && phased_bam_provided) {
             plotPhasedDMRs(annotated_dmr_output.annotated_dmr_beds, gene_list_for_plotting, phased_bam_ch)
+        } else if (!params.plot) {
+            println "INFO: --plot not specified; skipping plotting."
         }
         
     } else if (params.'phased_mA' && params.phased_modBam) {
@@ -293,9 +316,11 @@ def runPileupMode(gene_list_for_plotting) {
         annotated_dmr_output = annotate_dmrs(dmrs.dmr_beds, file(annotationFile))
         report_dmrs(annotated_dmr_output.annotated_dmr_beds, annotated_dmr_output.annotation_log)
         
-        // Plot if BAM provided
-        if (phased_bam_provided) {
+        // Plot if requested and BAM provided
+        if (params.plot && phased_bam_provided) {
             plotPhasedDMRs(annotated_dmr_output.annotated_dmr_beds, gene_list_for_plotting, phased_bam_ch)
+        } else if (!params.plot) {
+            println "INFO: --plot not specified; skipping plotting."
         }
         
     } else if (params.'5mC' && params.input_modBam1 && params.input_modBam2) {
@@ -314,9 +339,11 @@ def runPileupMode(gene_list_for_plotting) {
         annotated_dmr_output = annotate_dmrs(dmrs.dmr_beds, file(annotationFile))
         report_dmrs(annotated_dmr_output.annotated_dmr_beds, annotated_dmr_output.annotation_log)
         
-        // Plot if BAMs provided
-        if (bam_files_provided) {
+        // Plot if requested and BAMs provided
+        if (params.plot && bam_files_provided) {
             plotStandardDMRs(annotated_dmr_output.annotated_dmr_beds, gene_list_for_plotting, input_bam_ch1, input_bam_ch2)
+        } else if (!params.plot) {
+            println "INFO: --plot not specified; skipping plotting."
         }
         
     } else if (params.'6mA' && params.input_modBam1 && params.input_modBam2) {
@@ -335,9 +362,11 @@ def runPileupMode(gene_list_for_plotting) {
         annotated_dmr_output = annotate_dmrs(dmrs.dmr_beds, file(annotationFile))
         report_dmrs(annotated_dmr_output.annotated_dmr_beds, annotated_dmr_output.annotation_log)
         
-        // Plot if BAMs provided
-        if (bam_files_provided) {
+        // Plot if requested and BAMs provided
+        if (params.plot && bam_files_provided) {
             plotStandardDMRs(annotated_dmr_output.annotated_dmr_beds, gene_list_for_plotting, input_bam_ch1, input_bam_ch2)
+        } else if (!params.plot) {
+            println "INFO: --plot not specified; skipping plotting."
         }
     }
 }
@@ -380,13 +409,20 @@ def runAnalysisMode(gene_list_for_plotting) {
     annotated_dmr_output = annotate_dmrs(dmrs.dmr_beds, file(annotationFile))
     report_dmrs(annotated_dmr_output.annotated_dmr_beds, annotated_dmr_output.annotation_log)
     
-    // Plot DMRs if not group analysis
+        // Plot DMRs if not group analysis
+
     boolean is_group_analysis = (params.input_group1 && params.input_group2)
     if (!is_group_analysis) {
-        plotDMRsBasedOnType(annotated_dmr_output.annotated_dmr_beds, gene_list_for_plotting)
+        if (params.plot) {
+            plotDMRsBasedOnType(annotated_dmr_output.annotated_dmr_beds, gene_list_for_plotting)
+        } else {
+            println "INFO: --plot not specified; skipping plotting."
+        }
     } else {
-        println "INFO: Plotting is not supported for group analysis."
-    }
+        if (params.plot) {
+            println "INFO: Plotting is not supported for group analysis."
+        }
+    }    
 }
 
 def runMethylationAnalysis(methylation_type, prep_func1, prep_func2) {
@@ -474,7 +510,7 @@ def plotPhasedDMRs(dmr_ch, gene_list, phased_bam_ch) {
         plot_phased_dmr_modbamtools(dmr_ch, gencode_annotation_for_plotting, gene_list, phased_bam_ch)
     }
     if (params.reference) {
-        plot_phased_dmr_methylartist(dmr_ch, gencode_annotation_for_plotting, gene_list, pileup_ref_ch, phased_bam_ch)
+        plot_phased_dmr_methylartist(dmr_ch, gencode_annotation_for_plotting, gene_list, plot_ref_ch, phased_bam_ch)
     } else if (params.methylartist_only) {
         println "WARNING: --reference genome not provided, but --methylartist_only was specified. Skipping methylartist plots for haplotagged DMRs."
     } else {
@@ -488,7 +524,7 @@ def plotStandardDMRs(dmr_ch, gene_list, bam_ch1, bam_ch2) {
         plot_dmr_modbamtools(dmr_ch, gencode_annotation_for_plotting, gene_list, bam_ch1, bam_ch2)
     }
     if (params.reference) {
-        plot_dmr_methylartist(dmr_ch, gencode_annotation_for_plotting, gene_list, pileup_ref_ch, bam_ch1, bam_ch2)
+        plot_dmr_methylartist(dmr_ch, gencode_annotation_for_plotting, gene_list, plot_ref_ch, bam_ch1, bam_ch2)
     } else if (params.methylartist_only) {
         println "WARNING: --reference genome not provided, but --methylartist_only was specified. Skipping methylartist plots for DMRs."
     } else {

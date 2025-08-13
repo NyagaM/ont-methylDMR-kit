@@ -1,5 +1,3 @@
-nextflow.enable.dsl = 2
-
 process prep_bedmethyl_5mC {
   label 'ont_methyl_analysis'
   label 'process_low'

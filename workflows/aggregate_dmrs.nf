@@ -1,5 +1,3 @@
-nextflow.enable.dsl = 2
-
 process aggregate_dmrs {
   label 'ont_methyl_analysis'
   label 'process_low'

@@ -1,5 +1,3 @@
-nextflow.enable.dsl = 2
-
 process report_dmrs {
     label 'dmr_report'
     label 'process_low'

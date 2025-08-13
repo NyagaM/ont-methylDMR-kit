@@ -1,5 +1,3 @@
-nextflow.enable.dsl = 2
-
 process plot_dmr_modbamtools {
   label 'modbamtools'
   label 'process_low'
