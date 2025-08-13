@@ -26,7 +26,7 @@ process modkit_mC {
         --ref ${reference} \\
         --interval-size 1000000 \\
         --log-filepath modkit_${name}.log \\
-        ${probs} \\
+        \${probs} \\
         --combine-strands \\
         --cpg \\
         --threads ${task.cpus} \\
@@ -64,7 +64,7 @@ process modkit_phased_mC {
         --ref ${reference} \\
         --interval-size 1000000 \\
         --log-filepath modkit_phased_${name}.log \\
-        ${probs} \\
+        \${probs} \\
         --prefix ${name}_5mC \\
         --partition-tag HP \\
         --combine-strands \\
@@ -105,7 +105,7 @@ process modkit_mA {
         --ref ${reference} \\
         --interval-size 1000000 \\
         --log-filepath modkit_6mA_${name}.log \\
-        ${probs} \\
+        \${probs} \\
         --motif AGG 0 \\
         --threads ${task.cpus} \\
         ${bam} \\
@@ -142,7 +142,7 @@ process modkit_phased_mA {
         --ref ${reference} \\
         --interval-size 1000000 \\
         --log-filepath modkit_phased_6mA_${name}.log \\
-        ${probs} \\
+        \${probs} \\
         --prefix ${name}_6mA \\
         --partition-tag HP \\
         --motif AGG 0 \\
