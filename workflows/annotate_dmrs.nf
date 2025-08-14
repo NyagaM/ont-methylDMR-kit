@@ -1,6 +1,6 @@
 process annotate_dmrs {
   label 'ont_methyl_analysis'
-  label 'process_low'
+  label 'process_default'
   publishDir "${params.output_dir}/annotated_dmrs", mode: 'copy'
 
   input:

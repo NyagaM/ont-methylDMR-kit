@@ -1,6 +1,6 @@
 process report_dmrs {
     label 'dmr_report'
-    label 'process_low'
+    label 'process_default'
     publishDir "${params.output_dir}/annotated_dmrs/report", mode: 'copy'
 
     input:

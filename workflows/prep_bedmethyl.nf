@@ -1,6 +1,6 @@
 process prep_bedmethyl_5mC {
   label 'ont_methyl_analysis'
-  label 'process_low'
+  label 'process_default'
   publishDir "${params.output_dir}/modified_beds/5mC", mode: 'copy'
   
   input:
