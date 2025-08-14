@@ -1,11 +1,7 @@
-nextflow.enable.dsl = 2
-
 process plot_dmr_modbamtools {
   label 'modbamtools'
+  label 'process_low'
   publishDir "${params.output_dir}/dmr_plots/modbamtools", mode: 'copy'
-  cpus 2
-  memory '4 GB'
-  time 9.hours
 
   input:
     path annotated_dmr_beds
@@ -37,13 +33,22 @@ process plot_dmr_modbamtools {
   # Use a temporary file to track plot count
   echo "0" > plot_count.tmp
 
-  awk 'NR > 1 { key = \$1 FS \$2 FS \$3 FS \$4 FS \$NF; if (!seen[key]++) print }' ${annotated_dmr_beds} | while IFS=\$'\\t' read -r chr start end length nSites meanMethy1 meanMethy2 diffMethy areaStat annotation_chr annotation_start annotation_end strand annotation biotype gene; do
+  awk 'NR > 1 { key = \$1 FS \$2 FS \$3 FS \$4 FS \$NF; if (!seen[key]++) print }' ${annotated_dmr_beds} | \\
+    while IFS=\$'\\t' read -r chr start end length nSites meanMethy1 meanMethy2 diffMethy areaStat annotation_chr annotation_start annotation_end strand annotation biotype gene; do
     if [[ ! -s "\${genes_of_interest_local_copy}" ]] || grep -q -w "\${gene}" "\${genes_of_interest_local_copy}"; then
       region="\${chr}:\${start}-\${end}"
       region2="\${chr}_\${start}-\${end}"
       output_prefix="\${region2}_\${gene}"
       
-      if modbamtools plot -r \${region} -g ${gtf_file} -s ${bam1.baseName},${bam2.baseName} -p \${output_prefix} ${bam1} ${bam2} -o ./; then
+      if 
+        modbamtools plot \\
+         -r \${region} \\
+         -g ${gtf_file} \\
+         -s ${bam1.baseName},${bam2.baseName} \\
+         -p \${output_prefix} ${bam1} ${bam2} \\
+         -o ./; 
+      then
+
         # Increment plot count on success
         current_count=\$(cat plot_count.tmp)
         echo \$((current_count + 1)) > plot_count.tmp
@@ -71,16 +76,14 @@ process plot_dmr_modbamtools {
 
 process plot_dmr_methylartist {
   label 'methylartist'
+  label 'process_low'
   publishDir "${params.output_dir}/dmr_plots/methylartist", mode: 'copy'
-  cpus 2
-  memory '4 GB'
-  time 9.hours
 
   input:
     path annotated_dmr_beds
     tuple file(gtf_file), file(gtf_tbi_file)
     path gene_list_path_input
-    path reference
+    tuple val(ref_name), path(reference), path(fai)
     tuple val(name1), file(bam1), file(bai1)
     tuple val(name2), file(bam2), file(bai2)
 
@@ -107,13 +110,26 @@ process plot_dmr_methylartist {
   # Use a temporary file to track plot count
   echo "0" > plot_count.tmp
 
-  awk 'NR > 1 { key = \$1 FS \$2 FS \$3 FS \$4 FS \$NF; if (!seen[key]++) print }' ${annotated_dmr_beds} | while IFS=\$'\\t' read -r chr start end length nSites meanMethy1 meanMethy2 diffMethy areaStat annotation_chr annotation_start annotation_end strand annotation biotype gene; do
+  awk 'NR > 1 { key = \$1 FS \$2 FS \$3 FS \$4 FS \$NF; if (!seen[key]++) print }' ${annotated_dmr_beds} | \\
+    while IFS=\$'\\t' read -r chr start end length nSites meanMethy1 meanMethy2 diffMethy areaStat annotation_chr annotation_start annotation_end strand annotation biotype gene; do
     if [[ ! -s "\${genes_of_interest_local_copy}" ]] || grep -q -w "\${gene}" "\${genes_of_interest_local_copy}"; then
       region="\${chr}:\${start}-\${end}"
       region2="\${chr}_\${start}-\${end}"
       output_prefix="\${region2}_\${gene}"
       
-      if methylartist locus --interval \${region} --gtf ${gtf_file} --bams ${bam1},${bam2} --ref ${reference} --motif CG --mods m --outfile \${output_prefix} --labelgenes --nomask; then
+      if 
+        methylartist locus \\
+          --interval \${region} \\
+          --gtf ${gtf_file} \\
+          --bams ${bam1},${bam2} \\
+          --ref ${reference} \\
+          --motif CG \\
+          --mods m \\
+          --outfile \${output_prefix} \\
+          --labelgenes \\
+          --nomask; 
+      then
+
         # Increment plot count on success
         current_count=\$(cat plot_count.tmp)
         echo \$((current_count + 1)) > plot_count.tmp
@@ -141,10 +157,8 @@ process plot_dmr_methylartist {
 
 process plot_phased_dmr_modbamtools {
   label 'modbamtools'
+  label 'process_low'
   publishDir "${params.output_dir}/haplotagged_dmr_plots/modbamtools", mode: 'copy'
-  cpus 2
-  memory '4 GB'
-  time 9.hours
 
   input:
     path annotated_dmr_beds
@@ -175,13 +189,22 @@ process plot_phased_dmr_modbamtools {
   # Use a temporary file to track plot count
   echo "0" > plot_count.tmp
 
-  awk 'NR > 1 { key = \$1 FS \$2 FS \$3 FS \$4 FS \$NF; if (!seen[key]++) print }' ${annotated_dmr_beds} | while IFS=\$'\\t' read -r chr start end length nCG meanMethy1 meanMethy2 diffMethy areaStat annotation_chr annotation_start annotation_end strand annotation biotype gene; do
+  awk 'NR > 1 { key = \$1 FS \$2 FS \$3 FS \$4 FS \$NF; if (!seen[key]++) print }' ${annotated_dmr_beds} | \\
+    while IFS=\$'\\t' read -r chr start end length nCG meanMethy1 meanMethy2 diffMethy areaStat annotation_chr annotation_start annotation_end strand annotation biotype gene; do
     if [[ ! -s "\${genes_of_interest_local_copy}" ]] || grep -q -w "\${gene}" "\${genes_of_interest_local_copy}"; then
       region="\${chr}:\${start}-\${end}"
       region2="\${chr}_\${start}-\${end}"
       output_prefix="\${region2}_\${gene}"
       
-      if modbamtools plot -r \${region} -g ${gtf_file} -s ${bam.baseName} -p \${output_prefix} -hp ${bam} -o ./; then
+      if 
+        modbamtools plot \\
+          -r \${region} \\
+          -g ${gtf_file} \\
+          -s ${bam.baseName} \\
+          -p \${output_prefix} \\
+          -hp ${bam} \\
+          -o ./; 
+      then
         # Increment plot count on success
         current_count=\$(cat plot_count.tmp)
         echo \$((current_count + 1)) > plot_count.tmp
@@ -209,16 +232,14 @@ process plot_phased_dmr_modbamtools {
 
 process plot_phased_dmr_methylartist {
   label 'methylartist'
+  label 'process_low'
   publishDir "${params.output_dir}/haplotagged_dmr_plots/methylartist", mode: 'copy'
-  cpus 2
-  memory '4 GB'
-  time 9.hours
 
   input:
     path annotated_dmr_beds
     tuple file(gtf_file), file(gtf_tbi_file)
     path gene_list_path_input
-    path reference
+    tuple val(ref_name), path(reference), path(fai)
     tuple val(name), file(bam), file(bai)
     
   output:
@@ -244,13 +265,28 @@ process plot_phased_dmr_methylartist {
   # Use a temporary file to track plot count
   echo "0" > plot_count.tmp
 
-  awk 'NR > 1 { key = \$1 FS \$2 FS \$3 FS \$4 FS \$NF; if (!seen[key]++) print }' ${annotated_dmr_beds} | while IFS=\$'\\t' read -r chr start end length nCG meanMethy1 meanMethy2 diffMethy areaStat annotation_chr annotation_start annotation_end strand annotation biotype gene; do
+  awk 'NR > 1 { key = \$1 FS \$2 FS \$3 FS \$4 FS \$NF; if (!seen[key]++) print }' ${annotated_dmr_beds} | \\
+    while IFS=\$'\\t' read -r chr start end length nCG meanMethy1 meanMethy2 diffMethy areaStat annotation_chr annotation_start annotation_end strand annotation biotype gene; do
     if [[ ! -s "\${genes_of_interest_local_copy}" ]] || grep -q -w "\${gene}" "\${genes_of_interest_local_copy}"; then
       region="\${chr}:\${start}-\${end}"
       region2="\${chr}_\${start}-\${end}"
       output_prefix="\${region2}_\${gene}"
       
-      if methylartist locus --interval \${region} --gtf ${gtf_file} --bams ${bam} --ref ${reference} --motif CG --mods m --outfile \${output_prefix} --labelgenes --nomask --phased --ignore_ps; then
+      if 
+        methylartist locus \\
+          --interval \${region} \\
+          --gtf ${gtf_file} \\
+          --bams ${bam} \\
+          --ref ${reference} \\
+          --motif CG \\
+          --mods m \\
+          --outfile \${output_prefix} \\
+          --labelgenes \\
+          --nomask \\
+          --phased \\
+          --ignore_ps; 
+      then
+
         # Increment plot count on success
         current_count=\$(cat plot_count.tmp)
         echo \$((current_count + 1)) > plot_count.tmp

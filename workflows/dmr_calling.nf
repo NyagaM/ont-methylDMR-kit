@@ -1,10 +1,6 @@
-nextflow.enable.dsl = 2
-
 process dmr_calling {
   label 'ont_methyl_analysis'
-  cpus 4
-  memory '4 GB'
-  maxForks 10  // Limit parallel chromosomes
+  maxForks 10     // Limit parallel chromosomes
   
   input:
     tuple val(chr), path(bed1), path(bed2)
@@ -100,8 +96,7 @@ EOF
 
 process split_group_beds_by_chr {
   label 'ont_methyl_analysis'
-  cpus 1
-  memory '2 GB'
+  label 'process_low'
   
   input:
     path group_beds
@@ -166,9 +161,7 @@ process split_group_beds_by_chr {
 
 process group_dmr_calling {
   label 'ont_methyl_analysis'
-  cpus 8
-  memory '8 GB'
-  maxForks 5  // Limit parallel chromosomes
+   maxForks 6     // Limit parallel chromosomes
   
   input:
     tuple val(chr), path(group1_beds), path(group2_beds)
