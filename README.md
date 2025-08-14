@@ -62,7 +62,7 @@ Options:
   --help               Print this help message
 ```
 
-# Modkit pileup exemplar:
+# From modkit pileup exemplar:
 Users can run the test data provided to test installation and set-up of the pipeline as follows:
 ```
 # First download and index the ref genome
@@ -82,7 +82,7 @@ nextflow run ont-methylDMR-kit/main.nf -profile singularity \
  --output_dir output 
 ```
 
-# Differential methylation analysis exemplar:
+# From bedmethyl exemplar:
 ```
 nextflow run ont-methylDMR-kit/main.nf -profile standard \
   --input_file1 ont-methylDMR-kit/HG002_base-mod-5mC_chr15/HG002_chr15_5mC.1.bed \
@@ -90,8 +90,7 @@ nextflow run ont-methylDMR-kit/main.nf -profile standard \
   --phased_mC \
   --plot \
   --phased_modBam ont-methylDMR-kit/HG002_base-mod-5mC_chr15/HG002_base-mod-5mC_chr15.bam \
-  --output_dir output \
-  --imprinted
+  --output_dir output
 ##--reference provide a reference (hg38 for this example) to plot DMRs using methylartist as well
 ```
 The output dir should have the following: 
