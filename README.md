@@ -1,4 +1,4 @@
-# Methylation analysis using Modified-base BAM files (modBAMs) from long read data
+# Methylation analysis using modified-base BAM files (modBAMs) from long read data
 ***`ont-methylDMR-kit`*** is an an end-to-end pipeline for methylation analysis, starting with long-read modified-base bam files (modbams) to generate bedmethyl files using [modkit](https://github.com/nanoporetech/modkit), through to identifying, annotating and plotting differentially methylated regions (DMRs) between `haplotypes`, `two samples`, or between `two groups`. This pipeline is inspired by my work on rare disorders, and the fact that long-read sequencing has the potential to comprehensively identify modified bases, such as 5-Methylcytosine (5mC), 5-Hydroxymethylcytosine (5hmC), N6-methyladenine (6mA), and N4-methylcytosine (4mC) that have been identified for a growing number of rare disorders and imprinted disorders.
 
 The pipeline is built using [Nextflow](https://www.nextflow.io/), a bioinformatics workflow manager that enables the development of portable and reproducible workflows. 
