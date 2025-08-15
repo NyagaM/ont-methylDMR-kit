@@ -149,7 +149,7 @@ nextflow run ont-methylDMR-kit/main.nf -profile singularity \
   --reference /path/to/ref genome \
   --gene_list /path/to/gene_list.txt  # if not provided, all regions will be plotted or use --imprinted to plot across imprinted genes
 ```
-To run DMR analysis workflow from bedmethyls as the starting point between between two samples:
+To run DMR analysis from bedmethyls as the starting point between between two samples:
 ```
 nextflow run ont-methylDMR-kit/main.nf -profile standard \
   --input_file1 /path/to/bedmethyl file for sample 1 \
@@ -161,7 +161,7 @@ nextflow run ont-methylDMR-kit/main.nf -profile standard \
   --gene_list /path/to/gene_list.txt  # if not provided, all regions will be plotted
   ##--reference provide a reference to plot DMRs using methylartist as well
 ```
-To run DMR analysis workflow from bedmethyls as the starting point between between two haplotypes:
+To run DMR analysis from bedmethyls as the starting point between between two haplotypes:
 
 ```
 nextflow run ont-methylDMR-kit/main.nf -profile standard \
