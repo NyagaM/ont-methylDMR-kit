@@ -30,7 +30,11 @@ $ tar -xvf annotations.tar.gz
 To view usage and run options:
 
 ```bash
-$ nextflow run main.nf --help
+$ nextflow run ont-methylDMR-kit/main.nf --output_dir ./ --help
+```
+Profiles:
+```bash
+-profile docker or -profile singularity; (for slurm) -profile slurm,singularity or -profile slurm,docker; or -profile awsbatch (not fully tested yet)
 ```
 ```bash
 Usage: nextflow run main.nf [options]
@@ -79,8 +83,16 @@ nextflow run ont-methylDMR-kit/main.nf -profile singularity \
  --plot \
  --phased_modBam ont-methylDMR-kit/HG002_base-mod-5mC_chr15/HG002_base-mod-5mC_chr15.bam \
  --reference GCA_000001405.15_GRCh38_no_alt_analysis_set.fna \
- --output_dir output 
+ --output_dir output
 ```
+The output dir should have the following:
+*`modkit`*: folder containing haplotype-specific bedmethyl files (*_1 and *_2), *ungrouped_bed and modkit pileup log file.
+*`annotated_dmrs`*: folder containing annotated dmrs, log file and a summary html report for identified DMRs.
+*`dmrs`*: folder with dmrs and debug folder containing R-scripts and log files. 
+*`haplotagged_dmr_plots`*: folder with plots and log file. 
+*`imprinted_genes.txt`*: imprinted gene list. 
+*`modified_beds`*: folder with modified input bed files. 
+*`execution`*: folder with pipeline execution files. 
 
 # From bedmethyl exemplar:
 ```
@@ -95,11 +107,12 @@ nextflow run ont-methylDMR-kit/main.nf -profile standard \
 ```
 The output dir should have the following: 
 
-*`annotated_dmrs`*: folder containing annotated dmrs and log file. 
+*`annotated_dmrs`*: folder containing annotated dmrs, log file and a summary html report for identified DMRs.
 *`dmrs`*: folder with dmrs and debug folder containing R-scripts and log files. 
 *`haplotagged_dmr_plots`*: folder with plots and log file. 
 *`imprinted_genes.txt`*: imprinted gene list. 
 *`modified_beds`*: folder with modified input bed files. 
+*`execution`*: folder with pipeline execution files. 
 
 Below is an examples of a significant 2.4kb haplotype-specific DMR identified and visualised using the pipeline within the imprinted *SNURF* gene. *SNURF* is mapped within the Prader-Willi Syndrome critical region on chromosome 15. The transcripts produced from this gene initiate at an imprinting center and are paternally-imprinted.
 
@@ -112,7 +125,31 @@ Below is an examples of a significant 2.4kb haplotype-specific DMR identified an
 
 
 # Differential workflows:
-To run the full DMR analysis workflow between between two samples:
+To run the end-to-end DMR analysis workflow between between two samples:
+```
+nextflow run ont-methylDMR-kit/main.nf -profile singularity \
+  --pileup \
+  --plot \
+  --5mC \ # or --6mA or --4mC
+  --input_modbam1 /path/to/modBam for sample 1 \
+  --input_modbam2 /path/to/modBam for sample 2 \
+  --output_dir /path/to/write output \
+  --reference /path/to/ref genome \
+  --gene_list /path/to/gene_list.txt  # if not provided, all regions will be plotted
+```
+To run the end-to-end DMR analysis workflow between between two haplotypes:
+
+```
+nextflow run ont-methylDMR-kit/main.nf -profile singularity \
+  --pileup \
+  --plot \
+  --phased_mC \ # or --phased_mA or --phased_hmC
+  --phased_modBam /path/to/phased modBam for the sample \
+  --output_dir /path/to/write output \
+  --reference /path/to/ref genome \
+  --gene_list /path/to/gene_list.txt  # if not provided, all regions will be plotted or use --imprinted to plot across imprinted genes
+```
+To run DMR analysis workflow from bedmethyls as the starting point between between two samples:
 ```
 nextflow run ont-methylDMR-kit/main.nf -profile standard \
   --input_file1 /path/to/bedmethyl file for sample 1 \
@@ -121,10 +158,10 @@ nextflow run ont-methylDMR-kit/main.nf -profile standard \
   --input_modbam1 /path/to/modBam for sample 1 \
   --input_modbam2 /path/to/modBam for sample 2 \
   --output_dir /path/to/write output \
-  --gene_list /path/to/gene_list.txt  # if not provided, all regions will be plotted or use --imprinted to plot across imprinted genes
+  --gene_list /path/to/gene_list.txt  # if not provided, all regions will be plotted
   ##--reference provide a reference to plot DMRs using methylartist as well
 ```
-To run the full DMR analysis workflow between between two haplotypes:
+To run DMR analysis workflow from bedmethyls as the starting point between between two haplotypes:
 
 ```
 nextflow run ont-methylDMR-kit/main.nf -profile standard \
@@ -133,18 +170,19 @@ nextflow run ont-methylDMR-kit/main.nf -profile standard \
   --phased_mC \ # or --phased_mA or --phased_hmC
   --phased_modBam /path/to/phased modBam for the sample \
   --output_dir /path/to/write output \
-  --gene_list /path/to/gene_list.txt  or --imprinted
+  --gene_list /path/to/gene_list.txt  or --imprinted  # if not provided, all regions will be plotted
   ##--reference provide a reference to plot DMRs using methylartist as well
-```  
+```    
 To run plots-only mode for DMRs identified between two samples:
 ```
 nextflow run ont-methylDMR-kit/main.nf -profile standard \
   --plots-only \
+  --5mC \ # or --6mA or --4mC \
   --annotated_dmrs /path/to/dmrs_table_annotated.bed \
   --input_modbam1 /path/to/modBam for sample 1 \
   --input_modbam2 /path/to/modBam for sample 2 \
   --output_dir /path/to/write output \
-  --gene_list /path/to/gene_list.txt or --imprinted
+  --gene_list /path/to/gene_list.txt or --imprinted # if not provided, all regions will be plotted
   ##--reference provide a reference to plot DMRs using methylartist as well
 ```
 To run plots-only mode for DMRs identified between haplotypes:
@@ -155,7 +193,7 @@ nextflow run ont-methylDMR-kit/main.nf -profile standard \
   --annotated_dmrs /path/to/dmrs_table_annotated.bed \
   --phased_modBam /path/to/phased modBam for the sample \
   --output_dir /path/to/write output \
-  --gene_list /path/to/gene_list.txt or --imprinted
+  --gene_list /path/to/gene_list.txt or --imprinted # if not provided, all regions will be plotted
   ##--reference provide a reference to plot DMRs using methylartist as well
 ```
 To run DMR analysis between two groups of bedmethyl files:
