@@ -96,7 +96,7 @@ The output dir should have the following:
 
 # From bedmethyl exemplar:
 ```
-nextflow run ont-methylDMR-kit/main.nf -profile standard \
+nextflow run ont-methylDMR-kit/main.nf -profile singularity \
   --input_file1 ont-methylDMR-kit/HG002_base-mod-5mC_chr15/HG002_chr15_5mC.1.bed \
   --input_file2 ont-methylDMR-kit/HG002_base-mod-5mC_chr15/HG002_chr15_5mC.2.bed \
   --phased_mC \
@@ -151,7 +151,7 @@ nextflow run ont-methylDMR-kit/main.nf -profile singularity \
 ```
 To run DMR analysis from bedmethyls as the starting point between between two samples:
 ```
-nextflow run ont-methylDMR-kit/main.nf -profile standard \
+nextflow run ont-methylDMR-kit/main.nf -profile singularity \
   --input_file1 /path/to/bedmethyl file for sample 1 \
   --input_file2 /path/to/bedmethyl file for sample 2 \
   --5mC \ # or --6mA or --4mC
@@ -164,7 +164,7 @@ nextflow run ont-methylDMR-kit/main.nf -profile standard \
 To run DMR analysis from bedmethyls as the starting point between between two haplotypes:
 
 ```
-nextflow run ont-methylDMR-kit/main.nf -profile standard \
+nextflow run ont-methylDMR-kit/main.nf -profile singularity  \
   --input_file1 /path/to/bedmethyl file for haplotype 1 \
   --input_file2 /path/to/bedmethyl file for haplotype 2 \
   --phased_mC \ # or --phased_mA or --phased_hmC
@@ -175,7 +175,7 @@ nextflow run ont-methylDMR-kit/main.nf -profile standard \
 ```    
 To run plots-only mode for DMRs identified between two samples:
 ```
-nextflow run ont-methylDMR-kit/main.nf -profile standard \
+nextflow run ont-methylDMR-kit/main.nf -profile singularity \
   --plots-only \
   --5mC \ # or --6mA or --4mC \
   --annotated_dmrs /path/to/dmrs_table_annotated.bed \
@@ -187,7 +187,7 @@ nextflow run ont-methylDMR-kit/main.nf -profile standard \
 ```
 To run plots-only mode for DMRs identified between haplotypes:
 ```
-nextflow run ont-methylDMR-kit/main.nf -profile standard \
+nextflow run ont-methylDMR-kit/main.nf -profile singularity \
   --plots-only \
   --phased_mC \ # or --phased_mA or --phased_hmC
   --annotated_dmrs /path/to/dmrs_table_annotated.bed \
