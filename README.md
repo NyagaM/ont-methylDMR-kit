@@ -164,7 +164,7 @@ nextflow run ont-methylDMR-kit/main.nf -profile singularity \
 To run DMR analysis from bedmethyls as the starting point between between two haplotypes:
 
 ```
-nextflow run ont-methylDMR-kit/main.nf -profile singularity  \
+nextflow run ont-methylDMR-kit/main.nf -profile singularity \
   --input_file1 /path/to/bedmethyl file for haplotype 1 \
   --input_file2 /path/to/bedmethyl file for haplotype 2 \
   --phased_mC \ # or --phased_mA or --phased_hmC
@@ -198,7 +198,7 @@ nextflow run ont-methylDMR-kit/main.nf -profile singularity \
 ```
 To run DMR analysis between two groups of bedmethyl files:
 ```
-nextflow run ont-methylDMR-kit/main.nf -profile standard \
+nextflow run ont-methylDMR-kit/main.nf -profile singularity \
   --input_group1 /path/to/bedmethyl files (must have .bed extension) for group 1 \
   --input_group2 /path/to/bedmethyl files (must have .bed extension) for group 2 \
   --5mC \ # or --6mA or --4mC 
