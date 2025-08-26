@@ -131,8 +131,8 @@ nextflow run ont-methylDMR-kit/main.nf -profile singularity \
   --pileup \
   --plot \
   --5mC \ # or --6mA or --4mC
-  --input_modbam1 /path/to/modBam for sample 1 \
-  --input_modbam2 /path/to/modBam for sample 2 \
+  --input_modBam1 /path/to/modBam for sample 1 \
+  --input_modBam2 /path/to/modBam for sample 2 \
   --output_dir /path/to/write output \
   --reference /path/to/ref genome \
   --gene_list /path/to/gene_list.txt  # if not provided, all regions will be plotted
