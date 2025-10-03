@@ -199,8 +199,8 @@ nextflow run ont-methylDMR-kit/main.nf -profile singularity \
 To run DMR analysis between two groups of bedmethyl files:
 ```
 nextflow run ont-methylDMR-kit/main.nf -profile singularity \
-  --input_group1 /path/to/bedmethyl files (must have .bed extension) for group 1 \
-  --input_group2 /path/to/bedmethyl files (must have .bed extension) for group 2 \
+  --input_group1 /path/to/folder containing bedmethyl files (must have .bed extension) for group 1 \
+  --input_group2 /path/to/folder containing bedmethyl files (must have .bed extension) for group 2 \
   --5mC \ # or --6mA or --4mC 
   --output_dir /path/to/write output
 ```
