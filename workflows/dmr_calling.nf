@@ -8,7 +8,7 @@ process dmr_calling {
   output:
     path("dmrs_${chr}.bed"), emit: chr_dmrs
     path("dmr_status_${chr}.log"), emit: status_log
-    path("debug_${chr}"), emit: debug_output optional true
+    path("debug_${chr}"), emit: debug_output, optional: true
     
   script:
   """
@@ -170,7 +170,7 @@ process group_dmr_calling {
   output:
     path("dmrs_${chr}.bed"), emit: chr_dmrs
     path("dmr_status_${chr}.log"), emit: status_log
-    path("debug_${chr}"), emit: debug_output optional true
+    path("debug_${chr}"), emit: debug_output, optional: true
     
   script:
   """
