@@ -36,7 +36,7 @@ Profiles:
 ```bash
 -profile docker or -profile singularity; (for slurm) -profile slurm,singularity or -profile slurm,docker; or -profile awsbatch (not fully tested yet)
 
-Note: If running docker on a Mac with Apple Silicon chip, use `export DOCKER_DEFAULT_PLATFORM=linux/amd64 && nextflow run ont-methylDMR-kit -profile docker`
+Note: If running docker on a Mac with Apple Silicon chip, use `export DOCKER_DEFAULT_PLATFORM=linux/amd64 && nextflow run /path/to/ont-methylDMR-kit/ -profile docker`
 ```
 ```bash
 Usage: nextflow run main.nf [options]
