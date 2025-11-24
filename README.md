@@ -30,7 +30,7 @@ $ tar -xvf annotations.tar.gz
 To view usage and run options:
 
 ```bash
-$ nextflow run ont-methylDMR-kit/main.nf --output_dir ./ --help
+$ nextflow run /path/to/ont-methylDMR-kit/ --output_dir ./ --help
 ```
 Profiles:
 ```bash
@@ -77,12 +77,12 @@ samtools faidx GCA_000001405.15_GRCh38_no_alt_analysis_set.fna
 # Run the pipeline from modkit pileup
 cd ont-methylDMR-kit && tar -xvf test_data.tar.gz
 
-nextflow run ont-methylDMR-kit/main.nf -profile singularity \
+nextflow run /path/to/ont-methylDMR-kit/ -profile singularity \
  --phased_mC   \
  --pileup \
  --plot \
- --phased_modBam ont-methylDMR-kit/HG002_base-mod-5mC_chr15/HG002_base-mod-5mC_chr15.bam \
- --reference GCA_000001405.15_GRCh38_no_alt_analysis_set.fna \
+ --phased_modBam /path/to/ont-methylDMR-kit/HG002_base-mod-5mC_chr15/HG002_base-mod-5mC_chr15.bam \
+ --reference /path/to/GCA_000001405.15_GRCh38_no_alt_analysis_set.fna \
  --output_dir output
 ```
 The output dir should have the following:
@@ -96,12 +96,12 @@ The output dir should have the following:
 
 # From bedmethyl exemplar:
 ```
-nextflow run ont-methylDMR-kit/main.nf -profile singularity \
-  --input_file1 ont-methylDMR-kit/HG002_base-mod-5mC_chr15/HG002_chr15_5mC.1.bed \
-  --input_file2 ont-methylDMR-kit/HG002_base-mod-5mC_chr15/HG002_chr15_5mC.2.bed \
+nextflow run /path/to/ont-methylDMR-kit/ -profile singularity \
+  --input_file1 /path/to/ont-methylDMR-kit/HG002_base-mod-5mC_chr15/HG002_chr15_5mC.1.bed \
+  --input_file2 /path/to/ont-methylDMR-kit/HG002_base-mod-5mC_chr15/HG002_chr15_5mC.2.bed \
   --phased_mC \
   --plot \
-  --phased_modBam ont-methylDMR-kit/HG002_base-mod-5mC_chr15/HG002_base-mod-5mC_chr15.bam \
+  --phased_modBam /path/to/ont-methylDMR-kit/HG002_base-mod-5mC_chr15/HG002_base-mod-5mC_chr15.bam \
   --output_dir output
 ##--reference provide a reference (hg38 for this example) to plot DMRs using methylartist as well
 ```
@@ -127,7 +127,7 @@ Below is an examples of a significant 2.4kb haplotype-specific DMR identified an
 # Differential workflows:
 To run the end-to-end DMR analysis workflow between between two samples:
 ```
-nextflow run ont-methylDMR-kit/main.nf -profile singularity \
+nextflow run /path/to/ont-methylDMR-kit/ -profile singularity \
   --pileup \
   --plot \
   --5mC \ # or --6mA or --4mC
@@ -140,7 +140,7 @@ nextflow run ont-methylDMR-kit/main.nf -profile singularity \
 To run the end-to-end DMR analysis workflow between between two haplotypes:
 
 ```
-nextflow run ont-methylDMR-kit/main.nf -profile singularity \
+nextflow run /path/to/ont-methylDMR-kit/ -profile singularity \
   --pileup \
   --plot \
   --phased_mC \ # or --phased_mA or --phased_hmC
@@ -151,7 +151,7 @@ nextflow run ont-methylDMR-kit/main.nf -profile singularity \
 ```
 To run DMR analysis from bedmethyls as the starting point between between two samples:
 ```
-nextflow run ont-methylDMR-kit/main.nf -profile singularity \
+nextflow run /path/to/ont-methylDMR-kit/ -profile singularity \
   --input_file1 /path/to/bedmethyl file for sample 1 \
   --input_file2 /path/to/bedmethyl file for sample 2 \
   --5mC \ # or --6mA or --4mC
@@ -164,7 +164,7 @@ nextflow run ont-methylDMR-kit/main.nf -profile singularity \
 To run DMR analysis from bedmethyls as the starting point between between two haplotypes:
 
 ```
-nextflow run ont-methylDMR-kit/main.nf -profile singularity \
+nextflow run /path/to/ont-methylDMR-kit/ -profile singularity \
   --input_file1 /path/to/bedmethyl file for haplotype 1 \
   --input_file2 /path/to/bedmethyl file for haplotype 2 \
   --phased_mC \ # or --phased_mA or --phased_hmC
@@ -175,7 +175,7 @@ nextflow run ont-methylDMR-kit/main.nf -profile singularity \
 ```    
 To run plots-only mode for DMRs identified between two samples:
 ```
-nextflow run ont-methylDMR-kit/main.nf -profile singularity \
+nextflow run /path/to/ont-methylDMR-kit/ -profile singularity \
   --plots-only \
   --5mC \ # or --6mA or --4mC \
   --annotated_dmrs /path/to/dmrs_table_annotated.bed \
@@ -187,7 +187,7 @@ nextflow run ont-methylDMR-kit/main.nf -profile singularity \
 ```
 To run plots-only mode for DMRs identified between haplotypes:
 ```
-nextflow run ont-methylDMR-kit/main.nf -profile singularity \
+nextflow run /path/to/ont-methylDMR-kit/ -profile singularity \
   --plots-only \
   --phased_mC \ # or --phased_mA or --phased_hmC
   --annotated_dmrs /path/to/dmrs_table_annotated.bed \
@@ -198,7 +198,7 @@ nextflow run ont-methylDMR-kit/main.nf -profile singularity \
 ```
 To run DMR analysis between two groups of bedmethyl files:
 ```
-nextflow run ont-methylDMR-kit/main.nf -profile singularity \
+nextflow run /path/to/ont-methylDMR-kit/ -profile singularity \
   --input_group1 /path/to/folder containing bedmethyl files (must have .bed extension) for group 1 \
   --input_group2 /path/to/folder containing bedmethyl files (must have .bed extension) for group 2 \
   --5mC \ # or --6mA or --4mC 
