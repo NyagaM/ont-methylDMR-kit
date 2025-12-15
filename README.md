@@ -178,7 +178,7 @@ nextflow run /path/to/ont-methylDMR-kit/ -profile singularity \
 To run plots-only mode for DMRs identified between two samples:
 ```
 nextflow run /path/to/ont-methylDMR-kit/ -profile singularity \
-  --plots-only \
+  --plots_only \
   --5mC \ # or --6mA or --4mC \
   --annotated_dmrs /path/to/dmrs_table_annotated.bed \
   --input_modbam1 /path/to/modBam for sample 1 \
@@ -190,7 +190,7 @@ nextflow run /path/to/ont-methylDMR-kit/ -profile singularity \
 To run plots-only mode for DMRs identified between haplotypes:
 ```
 nextflow run /path/to/ont-methylDMR-kit/ -profile singularity \
-  --plots-only \
+  --plots_only \
   --phased_mC \ # or --phased_mA or --phased_hmC
   --annotated_dmrs /path/to/dmrs_table_annotated.bed \
   --phased_modBam /path/to/phased modBam for the sample \
